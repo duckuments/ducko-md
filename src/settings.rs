@@ -187,6 +187,7 @@ pub fn load() {
 fn apply(p: Preferences) {
     FEISHU.store(p.feishu, Ordering::Relaxed);
     LANG.store(p.lang() as u8, Ordering::Relaxed);
+    crate::model::set_untitled_name(text(crate::model::UNTITLED));
     MOTION_HIGH.store(p.motion == "high", Ordering::Relaxed);
     VIM.store(p.vim, Ordering::Relaxed);
     // Before the themes are read (startup) the base comes from `feishu`.

@@ -21,7 +21,7 @@ pub fn file_name_for(title: &str) -> String {
     }).collect();
     s = s.split_whitespace().collect::<Vec<_>>().join(" ");
     let s = s.trim_start_matches(['.', ' ']).trim_end_matches(['.', ' ']);
-    let mut s = if s.is_empty() { crate::model::UNTITLED.to_string() } else { s.to_string() };
+    let mut s = if s.is_empty() { crate::model::untitled_name() } else { s.to_string() };
     if s.len() > NAME_BYTES {
         let mut end = NAME_BYTES;
         while !s.is_char_boundary(end) { end -= 1; }

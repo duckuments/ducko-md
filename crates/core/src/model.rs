@@ -20,6 +20,14 @@ impl BlockId {
 /// What a document with an empty title is called.
 pub const UNTITLED: &str = "未命名文档";
 
+/// The name new, still-untitled files get on disk. Defaults to the Chinese
+/// source; the app overrides it with the chosen UI language so an English
+/// install doesn't create files with Chinese names.
+static UNTITLED_FILE: std::sync::RwLock<Option<String>> = std::sync::RwLock::new(None);
+
+pub fn set_untitled_name(name: &str) { *UNTITLED_FILE.write().unwrap() = Some(name.to_string()); }
+pub fn untitled_name() -> String { UNTITLED_FILE.read().unwrap().clone().unwrap_or_else(|| UNTITLED.to_string()) }
+
 /// A document title as shown in lists and links.
 pub fn display_title(t: &str) -> String {
     let t = t.trim();
