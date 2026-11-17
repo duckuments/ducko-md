@@ -1,144 +1,41 @@
 <h1 align="center">ducko</h1>
 
-<p align="center">
-  <b>A fast, quiet, local notes app.</b><br>
-  Drawn natively with Rust + GPUI. Your notes stay on your computer, stored in the Feishu (Lark) DocxXML format.
-</p>
+<p align="center"><b>A fast, quiet, local notes app.</b><br>
+Drawn natively with Rust + GPUI. Your notes stay on your computer.</p>
 
 <p align="center">
-  English · <a href="README.zh-CN.md">简体中文</a> · <a href="README.ja.md">日本語</a> · <a href="README.ko.md">한국어</a> · <a href="README.es.md">Español</a> · <a href="README.fr.md">Français</a>
+  <img src="docs/images/home.png" width="100%" alt="The ducko home screen: a document tree on the left and notes in a grid on the right.">
 </p>
-
-<p align="center">
-  <a href="https://github.com/duckuments/ducko-md/releases/latest"><img src="https://img.shields.io/github/v/release/duckuments/ducko-md?label=release&color=2f6feb" alt="Latest release"></a>
-  <a href="https://github.com/duckuments/ducko-md/actions/workflows/ci.yml"><img src="https://img.shields.io/github/actions/workflow/status/duckuments/ducko-md/ci.yml?branch=main&label=CI" alt="CI status"></a>
-  <img src="https://img.shields.io/badge/platform-macOS%20%7C%20Windows%20%7C%20Linux-lightgrey" alt="macOS, Windows and Linux">
-  <img src="https://img.shields.io/badge/built%20with-Rust%20%2B%20GPUI-dea584?logo=rust" alt="Built with Rust and GPUI">
-  <a href="LICENSE"><img src="https://img.shields.io/github/license/duckuments/ducko-md?color=green" alt="MIT license"></a>
-  <img src="https://img.shields.io/badge/status-beta-orange" alt="Beta">
-</p>
-
-<p align="center">
-  <a href="https://download.ducko.app/latest/ducko-macos-arm64.zip"><img src="docs/images/download-macos.svg" height="56" alt="Download for macOS"></a>
-  &nbsp;
-  <a href="https://download.ducko.app/latest/ducko-windows-x64-setup.exe"><img src="docs/images/download-windows.svg" height="56" alt="Download for Windows"></a>
-  &nbsp;
-  <a href="https://download.ducko.app/latest/ducko-x86_64.AppImage"><img src="docs/images/download-linux.svg" height="56" alt="Download for Linux"></a>
-</p>
-
-<p align="center">
-  <a href="https://ducko.app/?lang=en"><b>Website</b></a> ·
-  <a href="#download"><b>Download</b></a> ·
-  <a href="#performance">Performance</a> ·
-  <a href="#features">Features</a> ·
-  <a href="CONTRIBUTING.md">Contributing</a>
-</p>
-
-<p align="center">
-  <img src="docs/images/home.png" width="100%" alt="The ducko home screen: a document tree on the left and all notes in a grid on the right.">
-</p>
-
-> [!NOTE]
-> ducko is in **beta** and changing quickly. If you hit a bug or have an idea, please [open an issue](https://github.com/duckuments/ducko-md/issues) — or better, send a pull request.
 
 ## Why ducko
 
-**⚡ Fast, the native kind of fast.** The whole interface is drawn on the GPU by Rust and [GPUI](https://www.gpui.rs/). No WebView, no Electron. In a one-million-character document, typing, deleting and scrolling all stay under 6 ms per frame at P95.
-
-**🔒 Local-first. Your files are yours.** No account, no cloud, and nothing goes over the network by default (the optional update check aside). Your library is an ordinary folder on your computer: the sidebar's folders are real folders, and each note is a file named by its title (`.xml`, or `.md` for Markdown). Manage it with Git, iCloud or any sync tool you like; if you ever stop using ducko, your files are still there.
-
-**📝 A full rich-text editor that speaks Feishu (Lark) DocxXML.** Notes are saved in the DocxXML format used by Feishu (Lark) Docs, so copy-paste, import and export keep their structure. Headings, to-dos, tables, columns, callouts, code, math, images and attachments — the blocks you reach for when writing documents are all there.
-
-## Download
-
-<p align="center">
-  <a href="https://download.ducko.app/latest/ducko-macos-arm64.zip"><img src="docs/images/download-macos.svg" height="56" alt="Download for macOS"></a>
-  &nbsp;
-  <a href="https://download.ducko.app/latest/ducko-windows-x64-setup.exe"><img src="docs/images/download-windows.svg" height="56" alt="Download for Windows"></a>
-  &nbsp;
-  <a href="https://download.ducko.app/latest/ducko-x86_64.AppImage"><img src="docs/images/download-linux.svg" height="56" alt="Download for Linux"></a>
-</p>
-
-| Platform | Package | Requirements |
-|---|---|---|
-| **macOS** (Apple Silicon) | [ducko-macos-arm64.zip](https://download.ducko.app/latest/ducko-macos-arm64.zip) | macOS 13 or later |
-| **Windows** (x64) | [ducko-windows-x64-setup.exe](https://download.ducko.app/latest/ducko-windows-x64-setup.exe) | Windows 10 version 1809 or later |
-| **Linux** (x86_64, experimental) | [ducko-x86_64.AppImage](https://download.ducko.app/latest/ducko-x86_64.AppImage) | glibc 2.35 or later (Ubuntu 22.04 and newer) |
-| **macOS** (Intel) | [ducko-macos-x86_64.zip](https://download.ducko.app/latest/ducko-macos-x86_64.zip) | macOS 13 or later |
-
-- **macOS**: unzip and drag `ducko.app` into Applications. The app is signed and notarized by Apple.
-- **Windows**: run the installer. By default it installs for the current user only, and uninstalling never deletes your notes. If SmartScreen appears on first launch, click **More info → Run anyway**.
-- **Linux** (experimental): `chmod +x ducko-*.AppImage` and run it; without FUSE, add `--appimage-extract-and-run`. AppImage 0.1.10 and later support in-app updates; older Linux versions need a one-time manual install. Interactive testing so far covers Omarchy on Wayland; see the [Linux notes](CONTRIBUTING.md#linux-experimental).
-
-You can also download from [ducko](https://ducko.app/?lang=en). Every release and its SHA-256 checksums are on [GitHub Releases](https://github.com/duckuments/ducko-md/releases).
-
-On first launch, ducko asks for the interface language, where to keep your library and the quick-note shortcut, and offers to copy in notes from Obsidian, Logseq, iA Writer or Typora. An empty library gets a **Getting started** guide — a ten-minute tour of the main features. Existing notes are never overwritten.
-
-The interface is available in English, Simplified Chinese, Japanese, Korean, Spanish, French and Arabic.
-
-## Performance
-
-Frame processing time over 100 consecutive operations in a mixed document of **1 million characters** and 549 chapters:
-
-| Operation | P50 | P95 |
-|---|---:|---:|
-| ⌨️ Typing | **5.06 ms** | 5.78 ms |
-| ⌫ Backspace | **4.99 ms** | 5.55 ms |
-| 🖱️ Scrolling | **2.08 ms** | 4.14 ms |
-
-A 120 Hz display gives each frame 8.3 ms. Even at P95 on a million-character document, there is headroom left.
-
-| | |
-|---|---|
-| macOS download | ~18 MB |
-| Windows installer | ~14 MB |
-| Runtime | No WebView, no Electron, no background services |
-
-<sub>Apple M5 Pro / 48 GiB, macOS 26.5, release build. Methodology and scripts to reproduce: [docs/PERFORMANCE.md](docs/PERFORMANCE.md).</sub>
+- **Fast.** The whole interface is drawn on the GPU by Rust and [GPUI](https://www.gpui.rs/). No WebView, no Electron.
+- **Local-first.** No account, no cloud. Your library is an ordinary folder on your computer — each note is a file named by its title (`.xml`, or `.md` for Markdown). Manage it with Git, iCloud or any sync tool you like.
+- **Rich text.** Notes are saved in the Feishu (Lark) DocxXML format, so copy-paste, import and export keep their structure.
 
 ## Features
 
-- **Editing**: headings, ordered and bulleted lists, to-dos, quotes, code blocks with syntax highlighting, LaTeX math, tables (with merged cells), callouts, columns, images, attachments and covers. Markdown shortcuts such as `#`, `-`, `[]` and `>`, plus a `/` slash menu.
-- **Version history**: each note keeps snapshots of its previous contents as it saves (20 by default, 1–30 under Settings › Documents). A drawer lists them by day; clicking one shows that version in place, read-only, with the blocks it added or rewrote tinted and a one-click restore. Important versions can be named.
+- **Editing**: headings, lists, to-dos, quotes, code blocks with syntax highlighting, LaTeX math, tables (with merged cells), callouts, columns, images, attachments and covers. Markdown shortcuts (`#`, `-`, `[]`, `>`) and a `/` slash menu.
+- **Version history**: each note keeps snapshots as it saves, with a one-click restore.
 - **Organizing**: a document tree, pinning, favorites, full-text search and a trash.
-- **Import and export**: import Markdown folders (Obsidian picture embeds and callouts included) and Feishu (Lark) DocxXML; export Markdown and PDF, or print directly. Drag files from Finder onto Home or straight into a sidebar folder. Pasting from Feishu or a web page keeps the structure.
-- **Shortcuts**: press `⌘ /` (`Ctrl+/` on Windows) to see them all. Every one can be rebound. On Windows, Ctrl stands in for ⌘ and Alt for ⌥; the app and the Getting started guides show the keys for your system.
-- **Themes**: four built-in styles — Craft, Feishu, Notion and Obsidian — each with a dark variant, or write your own in CSS; see [docs/THEMES.md](docs/THEMES.md).
+- **Import and export**: import Markdown folders and Feishu (Lark) DocxXML; export Markdown and PDF, or print.
+- **Themes**: four built-in styles (Craft, Feishu, Notion, Obsidian), each with a dark variant, or write your own in CSS — see [docs/THEMES.md](docs/THEMES.md).
 
-## Contributors
+The interface is available in English, Simplified Chinese, Japanese, Korean, Spanish, French and Arabic.
 
-Thanks to everyone who has helped build ducko. Issues and pull requests are welcome: building, testing and code conventions are in [CONTRIBUTING.md](CONTRIBUTING.md).
+## Build
 
-[![Contributors](https://raw.githubusercontent.com/duckuments/ducko-md/contributors-assets/docs/images/contributors.svg?v=1)](https://github.com/duckuments/ducko-md/graphs/contributors)
+```sh
+cargo run --release
+```
 
-## Recent updates
-
-- **0.1.12** (Nov 14): drag files from Finder, or a file from Files on this computer, straight into a sidebar folder or between rows; the whole page lights up as a drop target. Redesigned Home cards with squircle corners, an Open in Finder menu, breadcrumbs that start at My documents, a minimum window width that keeps room for the note, and a solid sidebar in full screen. Fixes a hang when creating a document in a folder.
-- **0.1.11** (Nov 13): the library is now real folders, with files named by title; older libraries move over automatically, with a backup. A new first launch that sets the language, library location and quick-note shortcut and imports notes from Obsidian and other Markdown apps. Japanese, Spanish and Korean interfaces; display math in Markdown; documents reopen where you left off; faster launch and lower memory use.
-- **0.1.10** (Nov 10): choose a document type from the New menu, scroll wide tables horizontally, preserve Markdown column alignment, and keep the caret visible in long fields.
-- **0.1.9** (Nov 8): fix Cmd+Q on macOS, unresponsive window controls on Windows, and text selection hidden by highlight colors.
-- **0.1.8** (Nov 9): edit local Markdown files in place, import folders while keeping `.md`, and organize notes in nested folders with drag and undo. Lower image and preview memory use; steadier table resizing and refined menus. First launch chooses a supported system language. Experimental Linux AppImage packaging.
-- **0.1.7** (Nov 6): safer multi-window saving, conflict recovery and disk writes; restricted export file access; Markdown exports keep inline attachments. Fixed Chinese input deletion with Weasel on Windows.
-- **0.1.6** (Nov 6): smoother window switching and typing, wider tables, regular saves during continuous typing, and Option+Space for global quick notes on macOS. Windows adds image paste, PDF export and printing, with corrected word deletion.
-- **0.1.5** (Nov 5): the app is now called ducko; your library and notes stay where they were.
-  - Manage several documents at once from Home: duplicate, move or delete them together.
-  - Empty the Trash in one step; arrow keys move through the insert menu's icons; deleting every document no longer creates an empty one.
-  - After an in-app update, the sidebar shows once what changed in the new version.
-  - Windows: shortcuts and the built-in guide read Ctrl / Alt, and a failed launch explains itself and leaves a log.
-- **0.1.4** (Nov 5):
-  - In-app updates: when a new version is out, an **Update** button appears at the top of the sidebar. The download is verified against its signature, and a restart finishes the install; open documents are saved first. Automatic checks can be turned off in **Settings › General**. A check only fetches a version manifest and sends no data. Version 0.1.3 and earlier need a one-time manual download of 0.1.4.
-  - Dark mode: choose System, Light or Dark in **Settings › Appearance**. Built-in and custom themes all have a dark look; export and printing stay light.
-- **0.1.3** (Nov 4): sidebar text is readable again when macOS is in dark mode.
-- **0.1.2** (Nov 4): the standard macOS menus and shortcuts (Hide, Minimize, Zoom, Full Screen); clicking the Dock icon reopens a window after the last one was closed. Fixed some Chinese characters rendering with the wrong glyphs.
-- **0.1.1** (Nov 3): first Windows x64 release, installed per user, keeping your notes on uninstall. Polished the Chinese and English interface and the built-in guide.
-
-Full notes for each version are on [Releases](https://github.com/duckuments/ducko-md/releases).
+Building, testing and code conventions are in [CONTRIBUTING.md](CONTRIBUTING.md).
 
 ## License
 
 The code is licensed under [MIT](LICENSE). Third-party code, fonts and assets are listed in [THIRD_PARTY.md](THIRD_PARTY.md).
 
-The following are not covered by the MIT license and should be replaced in forks:
+Not covered by the MIT license, and to be replaced in forks:
 
-- The 67 Nucleo icons in `assets/icons/` are under a commercial Nucleo license. Do not extract or redistribute them on their own.
+- The Nucleo icons in `assets/icons/` are under a commercial Nucleo license. Do not extract or redistribute them on their own.
 - The name "ducko" and the app icon.
