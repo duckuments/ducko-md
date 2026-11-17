@@ -22,7 +22,7 @@ os.makedirs(work, exist_ok=True)
 log = os.path.join(work, 'log')
 if os.path.exists(log): os.remove(log)
 run = subprocess.Popen([sys.executable, os.path.join(here, '..', 'harness', 'run.py'), script, lib, work])
-binary = os.path.realpath(os.environ.get('FDL_BIN') or os.path.join(here, '..', '..', 'target', 'release', 'quiet_md'))
+binary = os.path.realpath(os.environ.get('FDL_BIN') or os.path.join(here, '..', '..', 'target', 'release', 'ducko'))
 
 def pid():
     out = subprocess.run(['pgrep', '-f', '^' + re.escape(binary)], capture_output=True, text=True).stdout.split()

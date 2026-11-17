@@ -3,7 +3,7 @@
 of everyday team documents plus a 1,000,000-character knowledge-base
 compilation that the benchmark opens, types into and scrolls.
 
-    python3 tools/perf/gen_library.py /tmp/quiet-perf/library
+    python3 tools/perf/gen_library.py /tmp/ducko-perf/library
 
 All content is synthetic. Deterministic (fixed seed)."""
 import json, os, random, sys, time

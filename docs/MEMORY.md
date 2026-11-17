@@ -1,6 +1,6 @@
 # Memory experiment log
 
-Origin: [#173](https://github.com/s1dashu/quiet-md/issues/173). On Windows, startup uses about 33MB, climbing past 400MB after viewing a few examples; another report said "it happens just from opening the home page."
+Origin: [#173](https://github.com/duckuments/ducko-md/issues/173). On Windows, startup uses about 33MB, climbing past 400MB after viewing a few examples; another report said "it happens just from opening the home page."
 
 ## Conclusion
 

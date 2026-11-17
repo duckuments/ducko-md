@@ -1,7 +1,7 @@
 #![recursion_limit = "512"]
 #![cfg_attr(target_os = "windows", windows_subsystem = "windows")]
 
-pub(crate) const APP_ID: &str = "com.s1dashu.quietmd";
+pub(crate) const APP_ID: &str = "com.duckuments.ducko";
 
 mod app;
 #[cfg(unix)]
@@ -68,7 +68,7 @@ mod tree;
 mod ui;
 mod update;
 
-use fdl_core::{docxml, lang, markdown, model, palette, paste, store, time};
+use ducko_core::{docxml, lang, markdown, model, palette, paste, store, time};
 
 use gpui::*;
 
@@ -110,7 +110,7 @@ pub(crate) fn main_window_options(scripted: bool, at: Option<Bounds<Pixels>>, cx
         app_id: Some(crate::APP_ID.into()),
         window_decorations: if cfg!(target_os = "linux") { Some(WindowDecorations::Client) } else { None },
         titlebar: Some(TitlebarOptions {
-            title: Some("Quiet.md".into()),
+            title: Some("ducko".into()),
             appears_transparent: cfg!(any(target_os = "macos", target_os = "windows")),
             traffic_light_position: Some(point(px(20.), px(app::HEADER_H / 2. - 7.))),
         }),

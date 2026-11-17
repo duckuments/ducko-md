@@ -1,6 +1,6 @@
-# quiet-md-stats
+# ducko-stats
 
-A Cloudflare Worker that runs once a day (00:30 UTC) and stores Quiet.md's statistics in the D1 database `quiet-md-stats`. It has no routes and serves no requests: downloads and update checks never pass through it. It reads what Cloudflare and GitHub already count and keeps daily aggregates, which those services don't keep for long (Cloudflare's per-path analytics: 31 days; GitHub: a running total only). No IP addresses are stored.
+A Cloudflare Worker that runs once a day (00:30 UTC) and stores ducko's statistics in the D1 database `ducko-stats`. It has no routes and serves no requests: downloads and update checks never pass through it. It reads what Cloudflare and GitHub already count and keeps daily aggregates, which those services don't keep for long (Cloudflare's per-path analytics: 31 days; GitHub: a running total only). No IP addresses are stored.
 
 ## What it records
 
@@ -8,7 +8,7 @@ Every number is a row of `metrics`: `(day, metric, dims, value, source)`, `day` 
 
 | metric | value | dims |
 |---|---|---|
-| `cdn.downloads` | distinct IPs that downloaded a package from download.quiet.md (a resumed or segmented download counts once) | platform, version (`latest` or `x.y.z`), channel, country |
+| `cdn.downloads` | distinct IPs that downloaded a package from download.ducko.app (a resumed or segmented download counts once) | platform, version (`latest` or `x.y.z`), channel, country |
 | `cdn.download_requests` | raw GET requests for packages, for comparison | platform, version, channel, status |
 | `update.checks` | distinct IPs that fetched an update manifest | platform, country |
 | `update.check_requests` | raw manifest requests | platform |
@@ -18,16 +18,16 @@ Every number is a row of `metrics`: `(day, metric, dims, value, source)`, `day` 
 | `github.downloads_total` | GitHub's download counter when collected | platform, version, asset |
 | `github.downloads` | the counter's increase since the previous day's snapshot | platform, version |
 | `github.stars`, `github.forks`, `github.watchers`, `github.open_issues` | the repository's counts when collected (open issues include PRs) | none |
-| `site.visitors` | distinct IPs that loaded quiet.md's home page, crawlers left out | country |
+| `site.visitors` | distinct IPs that loaded ducko.app's home page, crawlers left out | country |
 | `site.pageviews` | home page loads, crawlers left out | none |
 
-`channel` is `update` for the in-app updater (curl fetching the versioned `v<x.y.z>/` package its manifest names) and `cdn` for everything else on download.quiet.md: the site, the README and release-note links opened in a browser. The free plan's analytics have no query string or referer, so those links are not told apart.
+`channel` is `update` for the in-app updater (curl fetching the versioned `v<x.y.z>/` package its manifest names) and `cdn` for everything else on download.ducko.app: the site, the README and release-note links opened in a browser. The free plan's analytics have no query string or referer, so those links are not told apart.
 
 `downloads_daily` sums `cdn.downloads` and `github.downloads` per day, platform and channel (`cdn`, `update`, `github`). `runs` logs every collection with its row count or error.
 
 ```sh
-npx wrangler@4 d1 execute quiet-md-stats --remote --command "SELECT * FROM downloads_daily ORDER BY day DESC LIMIT 20"
-npx wrangler@4 d1 execute quiet-md-stats --remote --command "SELECT * FROM runs ORDER BY id DESC LIMIT 10"
+npx wrangler@4 d1 execute ducko-stats --remote --command "SELECT * FROM downloads_daily ORDER BY day DESC LIMIT 20"
+npx wrangler@4 d1 execute ducko-stats --remote --command "SELECT * FROM runs ORDER BY id DESC LIMIT 10"
 ```
 
 ## Setup
@@ -35,8 +35,8 @@ npx wrangler@4 d1 execute quiet-md-stats --remote --command "SELECT * FROM runs 
 From this directory:
 
 ```sh
-npx wrangler@4 d1 migrations apply quiet-md-stats --remote   # schema changes: add a file to migrations/
-npx wrangler@4 secret put CF_API_TOKEN                       # API token: Zone › Analytics › Read on quiet.md
+npx wrangler@4 d1 migrations apply ducko-stats --remote   # schema changes: add a file to migrations/
+npx wrangler@4 secret put CF_API_TOKEN                       # API token: Zone › Analytics › Read on ducko.app
 npx wrangler@4 secret put GITHUB_TOKEN                       # optional: any token, for GitHub's higher rate limit
 npx wrangler@4 deploy
 ```

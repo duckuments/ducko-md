@@ -331,7 +331,7 @@ pub struct Editor {
     /// handler never sees Esc — the editor's key binding takes it first).
     pub history_drawer: bool,
     /// Blocks this snapshot added or rewrote, tinted while 显示改动 is on.
-    pub diff_marks: Option<std::collections::HashMap<BlockId, fdl_core::changes::Change>>,
+    pub diff_marks: Option<std::collections::HashMap<BlockId, ducko_core::changes::Change>>,
     /// The 文档信息 row under the title.
     pub info: crate::store::InfoRow,
     /// 阅读位置: where to put the page once this document's rows are laid out

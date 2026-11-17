@@ -23,13 +23,13 @@ The result: Finder, AI tools, sync drives, and Git can't see the folder structur
 ## Directory layout (FORMAT 4)
 
 ```
-Quiet.md/
+ducko/
 ├── Work/
 │   ├── Weekly Report.md
 │   ├── Proposal.xml
 │   └── Subfolder/…
 ├── Quick Note.md
-└── .quiet/
+└── .ducko/
     ├── format.json      {"format": 4}
     ├── index.json       relative path → extra info (see below)
     ├── settings.json
@@ -38,7 +38,7 @@ Quiet.md/
     └── thumbs/          file preview thumbnails
 ```
 
-Scanning rule: recursively walk the library, recognizing `.md` and `.xml`; skip directories and files starting with `.` (`.quiet/`, `.git/`, `.obsidian/`, etc.) and image directories (see "Open questions").
+Scanning rule: recursively walk the library, recognizing `.md` and `.xml`; skip directories and files starting with `.` (`.ducko/`, `.git/`, `.obsidian/`, etc.) and image directories (see "Open questions").
 
 ## Index
 
@@ -67,7 +67,7 @@ Each document can still be assigned a runtime-only id in memory, for use by the 
 
 ## Migration (FORMAT 3 → 4)
 
-1. Acquire the write lock, fully back up `index.json` and `docs/` (e.g. to `.quiet/before-folders-4/`).
+1. Acquire the write lock, fully back up `index.json` and `docs/` (e.g. to `.ducko/before-folders-4/`).
 2. Build the directory tree from the existing `folder` / `parent` fields, move `docs/<id>.*` to `<folder path>/<title>.<extension>`, escaping names per the rules below.
 3. Rewrite all `doc-id` links as relative paths.
 4. Generate a new `index.json`, and write `format.json` as 4.
@@ -79,25 +79,25 @@ Old versions will refuse to open FORMAT 4 (existing version check), so there's n
 
 1. **Title → filename.** How to escape `/ \ : * ? " < > |`, leading `.`, Windows reserved names (`CON`, etc.), and overly long titles; adding a suffix like ` 2` for name collisions within the same directory; whether renaming the title immediately renames the file (leaning toward: yes, immediately, while also rewriting referencing links). Markdown documents currently store the title in `Meta.name`; after migration the title is the filename.
 2. **Where images go.** A single shared `assets/` for the whole library, or a per-document hidden `<title>.assets/` like local files use. The latter makes copying a single document easier, but renaming the title requires renaming the directory along with it.
-3. **Where the recycle bin goes.** `.quiet/trash/`, or hand it off to the system trash. The former allows in-app restore; the latter is more familiar to users.
+3. **Where the recycle bin goes.** `.ducko/trash/`, or hand it off to the system trash. The former allows in-app restore; the latter is more familiar to users.
 4. **Sync conflict copies.** iCloud, Dropbox, and similar services generate files like `Weekly Report (conflicted copy).md`; Git merges may leave conflict markers. How to detect and surface these during scanning.
 5. **Local files (`Meta.path`).** `.md` files outside the library are still opened the existing way; #112's "open local folder" could reuse the same scanning and watching, treating an external directory as a second library root.
 6. **Performance.** The cost of recursive scanning and watching for large libraries (thousands of documents); the existing `list()` cache that skips unchanged files by modification time and size should be kept.
 
 ## Additional requirements (2026-11-12)
 
-- **What you see in Finder is the sidebar.** The directory pointed to by Settings › Library, once opened, shows exactly the same folders and title-named files as the sidebar, and the user can open notes directly; metadata like pinning and ordering lives only in `.quiet/`, with a separate entry point in settings to view it. The `preferences.json`, `shortcuts.json`, `themes/`, and `format.json` currently at the root all move into `.quiet/`.
-- **Notes are self-contained.** A note's title (filename), body, and what it references (relative paths) can all be determined just by looking at that file; after deleting `.quiet/`, the whole library remains fully usable — only pinning, starring, and manual ordering are lost.
+- **What you see in Finder is the sidebar.** The directory pointed to by Settings › Library, once opened, shows exactly the same folders and title-named files as the sidebar, and the user can open notes directly; metadata like pinning and ordering lives only in `.ducko/`, with a separate entry point in settings to view it. The `preferences.json`, `shortcuts.json`, `themes/`, and `format.json` currently at the root all move into `.ducko/`.
+- **Notes are self-contained.** A note's title (filename), body, and what it references (relative paths) can all be determined just by looking at that file; after deleting `.ducko/`, the whole library remains fully usable — only pinning, starring, and manual ordering are lost.
 - **Sync-friendly.** On first launch the library can be placed in iCloud Drive, so:
   - State belonging only to this device (`opened` last-opened time, window size) doesn't go into the library — it's stored in the local app data directory, keyed by library path;
-  - `.quiet/index.json` merges entry-by-entry by relative path, so two devices editing different documents don't conflict;
+  - `.ducko/index.json` merges entry-by-entry by relative path, so two devices editing different documents don't conflict;
   - Scanning recognizes iCloud placeholder files (`.<name>.icloud`), triggering a download when needed rather than treating them as corrupted.
 
 ## Recommendations for open questions
 
 1. **Filenames:** replace illegal characters with full-width equivalents or `-`, strip leading `.`, append `_` to Windows reserved names, truncate over 120 bytes; append ` 2`, ` 3` for collisions; rename the file immediately when the title changes and rewrite referencing links (coalesced with the existing 500ms save-debounce during editing, to avoid renaming too frequently).
 2. **Images:** a hidden `.assets/` per folder. Copying a single document or an entire folder takes the images along; renaming the title doesn't require touching the image directory; and Finder isn't cluttered with extra directories.
-3. **Recycle bin:** `.quiet/trash/`, keeping in-app restore and the existing recycle-bin UI; actual deletion only happens when the recycle bin is emptied.
+3. **Recycle bin:** `.ducko/trash/`, keeping in-app restore and the existing recycle-bin UI; actual deletion only happens when the recycle bin is emptied.
 
 ## Phases
 

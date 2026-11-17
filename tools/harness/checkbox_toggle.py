@@ -15,7 +15,7 @@ import xml.etree.ElementTree as ET
 from PIL import Image, ImageChops
 
 here = Path(__file__).resolve().parent
-work = Path(tempfile.mkdtemp(prefix="quiet-checkbox-"))
+work = Path(tempfile.mkdtemp(prefix="ducko-checkbox-"))
 doc_id = "aaaaaaaa-0000-0000-0000-000000000001"
 marker = "CARET_MARKER"
 

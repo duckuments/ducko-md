@@ -17,27 +17,27 @@ curl --fail --location --retry 3 --proto '=https' --proto-redir '=https' \
   https://github.com/linuxdeploy/linuxdeploy/releases/download/1-alpha-20251107-1/linuxdeploy-x86_64.AppImage -o "$tool"
 echo "c20cd71e3a4e3b80c3483cef793cda3f4e990aca14014d23c544ca3ce1270b4d  $tool" | sha256sum -c -
 chmod +x "$tool"
-appdir="$stage/Quiet.md.AppDir"
-mkdir -p "$appdir/usr/share/doc/quiet-md"
-cp LICENSE THIRD_PARTY.md "$appdir/usr/share/doc/quiet-md/"
+appdir="$stage/ducko.AppDir"
+mkdir -p "$appdir/usr/share/doc/ducko"
+cp LICENSE THIRD_PARTY.md "$appdir/usr/share/doc/ducko/"
 mkdir -p "$appdir/usr/share/X11"
 cp -a /usr/share/X11/locale "$appdir/usr/share/X11/"
 # License notices for bundled shared libraries and their Compose data.
 for package in libxkbcommon0 libxkbcommon-x11-0 libxau6 libxdmcp6 libxcb-xkb1 libbsd0 libmd0 libx11-data; do
   install -Dm644 "/usr/share/doc/$package/copyright" "$appdir/usr/share/doc/$package/copyright"
 done
-convert assets/branding/app-icon.png -resize 512x512 "$stage/com.s1dashu.quietmd.png"
+convert assets/branding/app-icon.png -resize 512x512 "$stage/com.duckuments.ducko.png"
 export APPIMAGE_EXTRACT_AND_RUN=1
-export OUTPUT="$out/quiet-md-$version-x86_64.AppImage"
+export OUTPUT="$out/ducko-$version-x86_64.AppImage"
 export VERSION="$version"
-"$tool" --appdir "$appdir" --executable "${CARGO_TARGET_DIR:-target}/dist/quiet_md" \
-  --desktop-file packaging/linux/com.s1dashu.quietmd.desktop \
-  --icon-file "$stage/com.s1dashu.quietmd.png" --custom-apprun packaging/linux/AppRun --output appimage
+"$tool" --appdir "$appdir" --executable "${CARGO_TARGET_DIR:-target}/dist/ducko" \
+  --desktop-file packaging/linux/com.duckuments.ducko.desktop \
+  --icon-file "$stage/com.duckuments.ducko.png" --custom-apprun packaging/linux/AppRun --output appimage
 chmod +x "$OUTPUT"
 # Inspect the packaged payload, not only the original executable.
 (cd "$stage" && "$OUTPUT" --appimage-extract >/dev/null)
 test -x "$stage/squashfs-root/AppRun"
-payload="$stage/squashfs-root/usr/bin/quiet_md"
+payload="$stage/squashfs-root/usr/bin/ducko"
 LD_LIBRARY_PATH="$stage/squashfs-root/usr/lib" ldd "$payload" >"$OUTPUT.libraries.txt"
 if grep -q 'not found' "$OUTPUT.libraries.txt"; then
   cat "$OUTPUT.libraries.txt" >&2

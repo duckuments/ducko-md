@@ -126,7 +126,7 @@ mod tests {
 
     #[test]
     fn inline_images_become_assets_once() {
-        let root = std::env::temp_dir().join(format!("quiet-b64-{}", uuid::Uuid::new_v4()));
+        let root = std::env::temp_dir().join(format!("ducko-b64-{}", uuid::Uuid::new_v4()));
         let bytes = b"\x89PNG\r\n\x1a\npayload";
         let mut blocks = vec![image_block(&png(bytes))];
 
@@ -145,7 +145,7 @@ mod tests {
 
     #[test]
     fn what_is_not_a_picture_stays_inline() {
-        let root = std::env::temp_dir().join(format!("quiet-b64-{}", uuid::Uuid::new_v4()));
+        let root = std::env::temp_dir().join(format!("ducko-b64-{}", uuid::Uuid::new_v4()));
         std::fs::create_dir_all(root.join("assets")).unwrap();
         let cases = [
             "data:image/svg+xml;base64,PHN2Zz4=".to_string(),
@@ -165,7 +165,7 @@ mod tests {
 
     #[test]
     fn images_inside_a_table_are_absorbed() {
-        let root = std::env::temp_dir().join(format!("quiet-b64-{}", uuid::Uuid::new_v4()));
+        let root = std::env::temp_dir().join(format!("ducko-b64-{}", uuid::Uuid::new_v4()));
         std::fs::create_dir_all(root.join("assets")).unwrap();
         let mut cell = crate::model::TableCell::empty();
         cell.blocks = vec![image_block(&png(b"\x89PNG\r\n\x1a\nin a cell"))];

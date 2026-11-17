@@ -5,7 +5,7 @@ use std::fs;
 include!(concat!(env!("OUT_DIR"), "/guides.rs"));
 
 /// Any entry but the lock file means an existing library, even if all
-/// documents were deleted (`.quiet/` keeps its index); a pending directory is
+/// documents were deleted (`.ducko/` keeps its index); a pending directory is
 /// a first launch to finish. Other hidden files (`.DS_Store`) are not a library.
 pub(crate) fn seeded(root: &Path) -> std::io::Result<bool> {
     if root.join(".guides-pending").exists() { return Ok(false); }
@@ -25,8 +25,8 @@ const WINDOWS_TEXT: &[(&str, &str)] = &[
     ("On macOS, <code>⌘ ⌃ ⇧ 4</code> captures a selection to the clipboard.", "<code>Win+Shift+S</code> captures a selection to the clipboard."),
     ("Drag an image from Finder into the document.", "Drag an image from File Explorer into the document."),
     ("a project banner from your Mac.", "a project banner from your computer."),
-    ("<h2>Move to another Mac</h2><ol><li>Quit Quiet.md on the old Mac with", "<h2>Move to another computer</h2><ol><li>Quit Quiet.md on the old computer with"),
-    ("Copy the complete Quiet.md folder into Documents on the new Mac.", "Copy the complete Quiet.md folder into Documents on the new computer."),
+    ("<h2>Move to another Mac</h2><ol><li>Quit ducko on the old Mac with", "<h2>Move to another computer</h2><ol><li>Quit ducko on the old computer with"),
+    ("Copy the complete ducko folder into Documents on the new Mac.", "Copy the complete ducko folder into Documents on the new computer."),
     ("Press a new combination containing Command, Control or Option.", "Press a new combination containing Ctrl or Alt."),
     ("Hold <code>⌥</code> to do the same for every folder inside.", "Hold <code>Alt</code> to do the same for every folder inside."),
     // The system-wide quick-note shortcut exists on macOS only.
@@ -63,7 +63,7 @@ pub fn initialize(root: &Path) -> anyhow::Result<()> {
             _ => fs::write(path, bytes)?,
         }
     }
-    // Published top level first, `.quiet/` (the index and format) last: an
+    // Published top level first, `.ducko/` (the index and format) last: an
     // interrupted launch is still pending, never a library missing its notes.
     let mut names: Vec<_> = fs::read_dir(&pending)?.collect::<Result<Vec<_>, _>>()?.into_iter().map(|e| e.file_name()).collect();
     names.sort_by_key(|n| *n == *crate::store::INTERNAL);
@@ -108,7 +108,7 @@ mod tests {
         std::fs::write(&first, "<title>mine</title>").unwrap();
         super::initialize(&root).unwrap();
         assert_eq!(std::fs::read_to_string(&first).unwrap(), "<title>mine</title>");
-        // Every note and folder deleted: `.quiet/` still says it is a library.
+        // Every note and folder deleted: `.ducko/` still says it is a library.
         for e in std::fs::read_dir(&root).unwrap() {
             let p = e.unwrap().path();
             if p.file_name().unwrap().to_string_lossy().starts_with('.') { continue; }

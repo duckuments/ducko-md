@@ -14,7 +14,7 @@ import xml.etree.ElementTree as ET
 from PIL import Image, ImageChops
 
 here = Path(__file__).resolve().parent
-work = Path(tempfile.mkdtemp(prefix="quiet-table-resize-"))
+work = Path(tempfile.mkdtemp(prefix="ducko-table-resize-"))
 source = work / "source"
 (source / "docs").mkdir(parents=True)
 doc_id = "aaaaaaaa-0000-0000-0000-000000000001"

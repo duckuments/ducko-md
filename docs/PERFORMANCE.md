@@ -36,12 +36,12 @@ bench "wheel 900 500 40" x100: step [p50 0.01 p95 0.02 max 0.02] frame [p50 2.08
 
 ## Reproducing
 
-The test only uses a temporary library, never touching `~/Documents/Quiet.md`.
+The test only uses a temporary library, never touching `~/Documents/ducko`.
 
 ```sh
 cargo build --release --locked --features devtools
-python3 tools/perf/gen_library.py /tmp/quiet-perf/library
-printf '{"english":true,"theme":"craft"}\n' > /tmp/quiet-perf/library/preferences.json
-python3 tools/harness/run.py tools/harness/examples/readme-performance.txt /tmp/quiet-perf/library /tmp/quiet-perf/run
-grep -a bench /tmp/quiet-perf/run/log
+python3 tools/perf/gen_library.py /tmp/ducko-perf/library
+printf '{"english":true,"theme":"craft"}\n' > /tmp/ducko-perf/library/preferences.json
+python3 tools/harness/run.py tools/harness/examples/readme-performance.txt /tmp/ducko-perf/library /tmp/ducko-perf/run
+grep -a bench /tmp/ducko-perf/run/log
 ```

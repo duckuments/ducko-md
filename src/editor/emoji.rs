@@ -1,5 +1,5 @@
 //! Emoji data and the state shared by the emoji pickers. Search, 最近 and
-//! random picks all work off the zh names / keywords in `fdl_core::emoji::TSV`.
+//! random picks all work off the zh names / keywords in `ducko_core::emoji::TSV`.
 
 use serde::{Deserialize, Serialize};
 use std::collections::{BTreeMap, HashMap};
@@ -98,7 +98,7 @@ struct Data {
 
 static DATA: LazyLock<Data> = LazyLock::new(|| {
     let mut all = vec![];
-    for line in fdl_core::emoji::TSV.lines() {
+    for line in ducko_core::emoji::TSV.lines() {
         let f: Vec<&'static str> = line.split('\t').collect();
         let [cat, id, ch, name, _en, keywords, emoticons] = f[..] else { continue };
         let mut parts = vec![id.to_lowercase()];

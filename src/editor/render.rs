@@ -1730,7 +1730,7 @@ impl Editor {
     /// 版本历史 显示改动: the fill behind a block this snapshot added or
     /// rewrote. None while the toggle is off (the map itself is dropped).
     pub(super) fn mark_fill(&self, id: BlockId) -> Option<Hsla> {
-        use fdl_core::changes::Change;
+        use ducko_core::changes::Change;
         Some(match self.diff_marks.as_ref()?.get(&id)? {
             Change::Added => crate::theme::ca(crate::theme::craft::old::G500, 0.10),
             Change::Changed => crate::theme::ca(crate::theme::craft::old::O500, 0.12),

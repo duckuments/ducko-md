@@ -4,12 +4,13 @@
 //
 //   CF_API_TOKEN=<token> node backfill.mjs [days]
 //
-// The token needs Zone › Analytics › Read on quiet.md and Account › D1 › Edit.
+// The token needs Zone › Analytics › Read on ducko.app and Account › D1 › Edit.
 // GITHUB_TOKEN is optional. Days defaults to 31.
 import { collect } from './src/index.js';
 
 const ACCOUNT = 'b56182e80c54647821efcd93b6371314';
-const DATABASE = '4b58cbda-8485-4861-8962-593e202803ea';
+// TODO: id of the new ducko-stats D1 database (`npx wrangler@4 d1 create ducko-stats`); this was quiet-md-stats's id.
+const DATABASE = 'REPLACE_WITH_DUCKO_STATS_D1_ID';
 const token = process.env.CF_API_TOKEN;
 if (!token) { console.error('CF_API_TOKEN is not set'); process.exit(1); }
 
@@ -37,7 +38,8 @@ const DB = { prepare: (sql) => new Stmt(sql), batch: (stmts) => query(stmts) };
 
 const env = {
   DB, CF_API_TOKEN: token, GITHUB_TOKEN: process.env.GITHUB_TOKEN,
-  ZONE_ID: '411c824a5a3ea80fcfd2d5551529366b', GITHUB_REPO: 's1dashu/quiet-md',
+  // TODO: ducko.app's Cloudflare zone id (Zone Overview page); this was quiet.md's.
+  ZONE_ID: 'REPLACE_WITH_DUCKO_APP_ZONE_ID', GITHUB_REPO: 'duckuments/ducko-md',
   MAX_DAYS: process.argv[2] || '31',
 };
 await collect(env);

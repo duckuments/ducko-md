@@ -1,5 +1,5 @@
 /*
- * quiet.md document theme: Craft
+ * ducko document theme: Craft
  *
  * Every property has its current value written out. Edit, save, and it takes effect immediately in the app.
  * See docs/THEMES.md for an explanation of the selectors and properties.
@@ -8,7 +8,7 @@
 :root {
   --theme-name: "Craft";
   --theme-name-en: "Craft";
-  --theme-author: "quiet.md";
+  --theme-author: "ducko";
   --theme-description: "Craft for macOS document style: SF Pro 15 / 22, dotted divider, blue accent.";
   /* How blocks are drawn: craft or feishu */
   --theme-base: craft;

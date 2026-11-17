@@ -11,9 +11,9 @@ use crate::editor::core::Core;
 use crate::input::{TextField, TextFieldEvent};
 use crate::theme::{self, Theme};
 use crate::ui::{format_date, format_time};
-use fdl_core::changes::Change;
-use fdl_core::model::BlockId;
-use fdl_core::versions::Version;
+use ducko_core::changes::Change;
+use ducko_core::model::BlockId;
+use ducko_core::versions::Version;
 use gpui::{prelude::FluentBuilder, *};
 use std::collections::HashMap;
 
@@ -92,7 +92,7 @@ impl Workspace {
         for (i, v) in versions.iter().enumerate() {
             let Some(older) = versions.get(i + 1) else { continue };
             if let Ok(lines) = self.store.version_diff(id, &v.name, Some(&older.name)) {
-                delta.insert(v.name.clone(), fdl_core::diff::counts(&lines));
+                delta.insert(v.name.clone(), ducko_core::diff::counts(&lines));
             }
         }
         let first = versions.first().map(|v| v.name.clone());
@@ -136,7 +136,7 @@ impl Workspace {
         // so a separately parsed copy would tint nothing.
         let marks: HashMap<BlockId, Change> = match previous.filter(|_| marks_on) {
             Some(prev) => self.store.version_document(&id, &prev).ok()
-                .map(|older| fdl_core::changes::block_changes(&older, &doc))
+                .map(|older| ducko_core::changes::block_changes(&older, &doc))
                 .unwrap_or_default().into_iter().collect(),
             None => HashMap::new(),
         };
@@ -213,7 +213,7 @@ impl Workspace {
         let shown = self.editor.as_ref().map(|ed| ed.read(cx).core.doc.clone());
         let marks: HashMap<BlockId, Change> = match (previous.filter(|_| on), shown) {
             (Some(prev), Some(shown)) => self.store.version_document(&id, &prev).ok()
-                .map(|older| fdl_core::changes::block_changes(&older, &shown))
+                .map(|older| ducko_core::changes::block_changes(&older, &shown))
                 .unwrap_or_default().into_iter().collect(),
             _ => HashMap::new(),
         };
@@ -256,7 +256,7 @@ impl Workspace {
         for (i, v) in versions.iter().enumerate() {
             let Some(older) = versions.get(i + 1) else { continue };
             if let Ok(lines) = self.store.version_diff(&id, &v.name, Some(&older.name)) {
-                delta.insert(v.name.clone(), fdl_core::diff::counts(&lines));
+                delta.insert(v.name.clone(), ducko_core::diff::counts(&lines));
             }
         }
         // Only follow a version if the page was already showing one: 保存当前

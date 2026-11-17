@@ -13,7 +13,7 @@ ROOT = Path(__file__).resolve().parent.parent
 
 
 def main():
-    repository = os.environ.get('GITHUB_REPOSITORY', 's1dashu/quiet-md')
+    repository = os.environ.get('GITHUB_REPOSITORY', 'duckuments/ducko-md')
     pages = json.loads(subprocess.check_output([
         'gh', 'api', '--paginate', '--slurp',
         f'repos/{repository}/contributors?per_page=100',
@@ -26,7 +26,7 @@ def main():
     rows = (len(contributors) + columns - 1) // columns
     width, height = columns * 68 - 4, rows * 68 - 4
     parts = [f'<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" width="{width}" height="{height}" viewBox="0 0 {width} {height}">',
-             '<title>Quiet.md contributors</title>']
+             '<title>ducko contributors</title>']
     for index, person in enumerate(contributors):
         url = urlsplit(person['avatar_url'])
         if url.scheme != 'https' or url.hostname != 'avatars.githubusercontent.com':
@@ -34,7 +34,7 @@ def main():
         query = dict(parse_qsl(url.query))
         query['s'] = '128'
         avatar_url = urlunsplit(url._replace(query=urlencode(query)))
-        with urlopen(Request(avatar_url, headers={'User-Agent': 'quiet-md-contributors'}), timeout=30) as response:
+        with urlopen(Request(avatar_url, headers={'User-Agent': 'ducko-contributors'}), timeout=30) as response:
             content_type = response.headers.get_content_type()
             if content_type not in ('image/png', 'image/jpeg', 'image/webp'):
                 raise ValueError(f'Unexpected avatar content type: {content_type}')

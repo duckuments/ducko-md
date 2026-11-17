@@ -94,7 +94,7 @@ pub(super) struct Scan {
 }
 
 /// Walk the library: `.md` and `.xml` files and the folders holding them;
-/// names starting with `.` (`.quiet`, `.assets`, `.git` …) are not the user's notes.
+/// names starting with `.` (`.ducko`, `.assets`, `.git` …) are not the user's notes.
 pub(super) fn scan(root: &Path) -> Scan {
     fn walk(root: &Path, rel: &str, out: &mut Scan) {
         let Ok(rd) = std::fs::read_dir(if rel.is_empty() { root.to_path_buf() } else { root.join(rel) }) else { out.partial = true; return };

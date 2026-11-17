@@ -1,5 +1,5 @@
 /*
- * quiet.md document theme: Feishu
+ * ducko document theme: Feishu
  *
  * Every property has its current value written out. Edit, save, and it takes effect immediately in the app.
  * See docs/THEMES.md for an explanation of the selectors and properties.
@@ -8,7 +8,7 @@
 :root {
   --theme-name: "飞书";
   --theme-name-en: "Feishu";
-  --theme-author: "quiet.md";
+  --theme-author: "ducko";
   --theme-description: "Feishu document body style: 16 / 26, Medium headings, blue links.";
   /* How blocks are drawn: craft or feishu */
   --theme-base: feishu;

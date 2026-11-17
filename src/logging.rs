@@ -9,24 +9,24 @@ use std::sync::{Mutex, OnceLock};
 static FILE: OnceLock<Mutex<File>> = OnceLock::new();
 static OPENED: OnceLock<PathBuf> = OnceLock::new();
 
-/// `~/Library/Logs/quiet.md` on macOS, `%LOCALAPPDATA%\quiet.md\logs` on
+/// `~/Library/Logs/ducko` on macOS, `%LOCALAPPDATA%\ducko\logs` on
 /// Windows; independent of where the program itself lives.
 pub fn dir() -> PathBuf {
-    if let Some(d) = std::env::var_os("QUIET_MD_LOG_DIR") { return PathBuf::from(d) }
+    if let Some(d) = std::env::var_os("DUCKO_LOG_DIR") { return PathBuf::from(d) }
     #[cfg(target_os = "macos")]
-    let base = dirs::home_dir().map(|h| h.join("Library").join("Logs").join("quiet.md"));
+    let base = dirs::home_dir().map(|h| h.join("Library").join("Logs").join("ducko"));
     #[cfg(not(target_os = "macos"))]
-    let base = dirs::data_local_dir().map(|d| d.join("quiet.md").join("logs"));
-    base.unwrap_or_else(|| std::env::temp_dir().join("quiet.md-logs"))
+    let base = dirs::data_local_dir().map(|d| d.join("ducko").join("logs"));
+    base.unwrap_or_else(|| std::env::temp_dir().join("ducko-logs"))
 }
 
 /// The file actually written (the temp fallback included).
-pub fn path() -> PathBuf { OPENED.get().cloned().unwrap_or_else(|| dir().join("quiet-md.log")) }
+pub fn path() -> PathBuf { OPENED.get().cloned().unwrap_or_else(|| dir().join("ducko.log")) }
 
 struct Logger;
 
 impl log::Log for Logger {
-    fn enabled(&self, m: &log::Metadata) -> bool { m.level() <= log::Level::Warn || m.target().starts_with("quiet_md") }
+    fn enabled(&self, m: &log::Metadata) -> bool { m.level() <= log::Level::Warn || m.target().starts_with("ducko") }
     fn log(&self, r: &log::Record) {
         if self.enabled(r.metadata()) { write(&format!("{} {}: {}", r.level(), r.target(), r.args())); }
     }
@@ -39,14 +39,14 @@ impl log::Log for Logger {
 pub fn init() {
     let open = |dir: PathBuf| -> std::io::Result<File> {
         std::fs::create_dir_all(&dir)?;
-        let p = dir.join("quiet-md.log");
+        let p = dir.join("ducko.log");
         let big = std::fs::metadata(&p).is_ok_and(|m| m.len() > 1 << 20);
-        if big { let _ = std::fs::rename(&p, dir.join("quiet-md.old.log")); }
+        if big { let _ = std::fs::rename(&p, dir.join("ducko.old.log")); }
         let f = OpenOptions::new().create(true).append(true).open(&p)?;
         let _ = OPENED.set(p);
         Ok(f)
     };
-    if let Ok(f) = open(dir()).or_else(|_| open(std::env::temp_dir().join("quiet.md-logs"))) { let _ = FILE.set(Mutex::new(f)); }
+    if let Ok(f) = open(dir()).or_else(|_| open(std::env::temp_dir().join("ducko-logs"))) { let _ = FILE.set(Mutex::new(f)); }
     let _ = log::set_logger(&Logger).map(|()| log::set_max_level(log::LevelFilter::Info));
     let default = std::panic::take_hook();
     std::panic::set_hook(Box::new(move |info| {
@@ -54,13 +54,13 @@ pub fn init() {
         default(info);
     }));
     let exe = std::env::current_exe().map(|p| p.display().to_string()).unwrap_or_default();
-    write(&format!("start Quiet.md {} ({exe})", env!("CARGO_PKG_VERSION")));
+    write(&format!("start ducko {} ({exe})", env!("CARGO_PKG_VERSION")));
 }
 
 /// The panicking stack as raw return addresses and the binary's load address:
 /// release builds carry no symbols, so the backtrace above reads as unknown
 /// frames. Resolve with the debug info scripts/release.sh keeps, e.g.
-/// `atos -o quiet_md.dSYM -l <base> <addresses>` on macOS.
+/// `atos -o ducko.dSYM -l <base> <addresses>` on macOS.
 fn frames() -> String {
     use std::ffi::c_void;
     let mut ips = [std::ptr::null_mut::<c_void>(); 64];
@@ -103,7 +103,7 @@ pub fn fatal(what: &str, err: &anyhow::Error) -> ! {
         #[link(name = "user32")]
         unsafe extern "system" { fn MessageBoxW(hwnd: *mut std::ffi::c_void, text: *const u16, caption: *const u16, kind: u32) -> i32; }
         // MB_OK | MB_ICONERROR
-        unsafe { MessageBoxW(std::ptr::null_mut(), wide(&text).as_ptr(), wide("Quiet.md").as_ptr(), 0x10); }
+        unsafe { MessageBoxW(std::ptr::null_mut(), wide(&text).as_ptr(), wide("ducko").as_ptr(), 0x10); }
     }
     std::process::exit(1)
 }

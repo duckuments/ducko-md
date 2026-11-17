@@ -1,4 +1,4 @@
-//! 首次启动: a few seconds of dithered film with Quiet glowing in, then a
+//! 首次启动: a few seconds of dithered film with ducko glowing in, then a
 //! straight cut to two pages on a drifting gradient —
 //! where the library lives and the quick-note shortcut, then notes to bring
 //! along. ⌘⌥⇧O and Settings › About replay it without touching the library. Nothing is written until 开始使用;
@@ -18,9 +18,9 @@ static PENDING: AtomicBool = AtomicBool::new(false);
 /// First launch's window is open and no library is chosen yet.
 pub fn pending() -> bool { PENDING.load(Ordering::Relaxed) }
 
-/// A new library gets the pages; `QUIET_MD_ONBOARDING` shows them anyway (previews, screenshots).
+/// A new library gets the pages; `DUCKO_ONBOARDING` shows them anyway (previews, screenshots).
 pub fn wanted(existed: bool, scripted: bool) -> bool {
-    std::env::var_os("QUIET_MD_ONBOARDING").is_some() || (!existed && !scripted)
+    std::env::var_os("DUCKO_ONBOARDING").is_some() || (!existed && !scripted)
 }
 
 // ---- the film
@@ -90,14 +90,14 @@ pub fn paint_texture(img: std::sync::Arc<RenderImage>, b: Bounds<Pixels>, window
     });
 }
 
-/// The wordmark over the film: white Quiet with a glow that follows each
+/// The wordmark over the film: white ducko with a glow that follows each
 /// letter. GPUI has no text shadow, so faint copies of the word ring it,
 /// a ring every point out to 18 with copies no more than 2.5 apart, each
 /// ring turned half a step from the last, fading on a bell curve with a
 /// long soft tail: their overlap blurs out from every stroke's edge
 /// without steps you can see.
 pub fn wordmark(alpha: f32) -> Div {
-    let word = |a: f32| div().text_size(px(92.)).line_height(px(110.)).font_weight(FontWeight::MEDIUM).text_color(hsla(0., 0., 1., a)).child("Quiet");
+    let word = |a: f32| div().text_size(px(92.)).line_height(px(110.)).font_weight(FontWeight::MEDIUM).text_color(hsla(0., 0., 1., a)).child("ducko");
     let mut halo = div().relative();
     for ring in 1..=18 {
         let r = ring as f32;
@@ -114,7 +114,7 @@ pub fn wordmark(alpha: f32) -> Div {
 
 // ---- the backdrop
 
-/// The film alone for a second, Quiet glowing in, then the pages straight
+/// The film alone for a second, ducko glowing in, then the pages straight
 /// over the film, which keeps playing behind them.
 const HOLD: f32 = 2.9;
 const MARK_IN: (f32, f32) = (1.0, 1.8);
@@ -293,7 +293,7 @@ pub(crate) fn ubiquitous(path: &Path) -> bool {
     }
 }
 
-/// A path as people know it: 文稿 › Quiet.md, iCloud 云盘 › Notes, Dropbox › …;
+/// A path as people know it: 文稿 › ducko, iCloud 云盘 › Notes, Dropbox › …;
 /// deep ones keep their first and last two names.
 /// Where a found folder lives, in a few words: its app's iCloud container
 /// reads as iCloud 云盘, anything else as its short path.
@@ -328,10 +328,10 @@ fn short_path(p: &Path) -> String {
 }
 
 /// A picked folder as a library: an existing one or an empty folder is used
-/// as it is; anything else gets a Quiet.md folder inside.
+/// as it is; anything else gets a ducko folder inside.
 pub(crate) fn library_in(dir: PathBuf) -> PathBuf {
     let empty = std::fs::read_dir(&dir).map(|mut r| r.all(|e| e.is_ok_and(|e| e.file_name().to_string_lossy().starts_with('.')))).unwrap_or(true);
-    if crate::store::Store::is_library(&dir) || empty { dir } else { dir.join("Quiet.md") }
+    if crate::store::Store::is_library(&dir) || empty { dir } else { dir.join("ducko") }
 }
 
 // ---- the view
@@ -617,7 +617,7 @@ impl Onboarding {
         div().size_full().flex().flex_col().items_center().justify_center().px(px(48.)).pb(px(40.))
             .child(div().flex().flex_col().items_center().gap(px(12.)).opacity(a).relative().top(px(10. * (1. - a)))
                 .child(div().size(px(64.)).rounded(px(15.)).overflow_hidden().shadow(theme::shadow_card()).child(img(crate::settings::about_icon()).size_full()))
-                .child(lifted(over, 56., 64., true, false, "Quiet.md"))
+                .child(lifted(over, 56., 64., true, false, "ducko"))
                 .child(lifted(over, 15., 23., false, true, tr("一个又快又安静的本地笔记应用。", "A fast, quiet, local notes app."))))
             .child(div().w_full().max_w(px(560.)).mt(px(40.)).flex().flex_col().gap(px(12.))
                 .child(lang)
@@ -761,7 +761,7 @@ fn heading(over: bool, title: &'static str, sub: &'static str) -> Div {
 }
 
 /// Words straight on the page, in the app's own font: dark on the plain
-/// backdrop; white on the film, titles glowing a little like the Quiet
+/// backdrop; white on the film, titles glowing a little like the ducko
 /// before them, the smallest words on a dark chip so the grass can't swallow them.
 fn lifted(over: bool, size: f32, line: f32, title: bool, soft: bool, text: impl Into<SharedString>) -> Div {
     let text: SharedString = text.into();
@@ -874,7 +874,7 @@ impl Render for Onboarding {
             }
         }
         let frame = self.film_tex.as_ref().map(|(_, t)| t.clone());
-        // Quiet glows in as the film ends.
+        // ducko glows in as the film ends.
         let mark = if film_up { ((t - MARK_IN.0) / (MARK_IN.1 - MARK_IN.0)).clamp(0., 1.) } else { 0. };
         div().id("onboarding").size_full().relative().overflow_hidden()
             .font_family(theme::UI_FONT).text_color(Theme::text())

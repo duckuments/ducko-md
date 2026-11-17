@@ -1,7 +1,7 @@
 //! On-disk library (FORMAT 4): the folders on disk are the library's folders
 //! and each document is a file named after its title (`工作/周报.xml`,
 //! `随手记.md`). What the files cannot say (pinned, order …) is kept per
-//! relative path in `.quiet/index.json`, a cache that can be lost; state that
+//! relative path in `.ducko/index.json`, a cache that can be lost; state that
 //! belongs to this computer only (recently opened, window sizes, 本机文件)
 //! is kept outside the library.
 
@@ -158,7 +158,7 @@ impl PageWidth {
     }
 }
 
-/// Window-level UI state: `.quiet/settings.json`, except the window sizes,
+/// Window-level UI state: `.ducko/settings.json`, except the window sizes,
 /// which belong to this computer.
 #[derive(Clone, Debug, Default, Serialize, Deserialize)]
 pub struct Settings {
@@ -197,7 +197,7 @@ impl Settings {
     pub fn set_history_limit(&mut self, n: u32) { self.history_limit = Some(crate::versions::clamp_limit(n)); }
 }
 
-/// A document in the 回收站, as kept in `.quiet/trash/index.json`.
+/// A document in the 回收站, as kept in `.ducko/trash/index.json`.
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct Trashed {
     pub meta: Meta,
@@ -249,7 +249,7 @@ pub struct Store {
     parsed: HashMap<String, (std::time::SystemTime, u64, Parsed)>,
     root: PathBuf,
     /// Every document and folder by its id. Ids are handed out per library
-    /// and remembered in `.quiet/index.json`, but nothing in a file refers
+    /// and remembered in `.ducko/index.json`, but nothing in a file refers
     /// to them: links are relative paths.
     index: HashMap<String, Meta>,
     trash: HashMap<String, Trashed>,
@@ -295,7 +295,7 @@ fn parsed_cache_version() -> String { format!("{}-{PARSED_CACHE}", env!("CARGO_P
 /// Beside the other things this computer keeps about `root`, in the cache folder.
 fn parsed_cache_path(root: &Path) -> PathBuf {
     let tmp = std::env::temp_dir();
-    let base = if cfg!(test) || root.starts_with(&tmp) { tmp.join("quiet-md-local") } else { dirs::cache_dir().unwrap_or(tmp).join("quiet-md") };
+    let base = if cfg!(test) || root.starts_with(&tmp) { tmp.join("ducko-local") } else { dirs::cache_dir().unwrap_or(tmp).join("ducko") };
     base.join("list").join(format!("{}.json", library_key(root)))
 }
 
@@ -314,12 +314,12 @@ impl Drop for WriteLock {
 #[derive(Default)]
 struct Batch { lock: Option<WriteLock>, depth: u32, index: std::cell::Cell<bool>, dirs: std::cell::RefCell<Vec<PathBuf>> }
 
-/// Version of the on-disk layout, kept in `.quiet/format.json`. Bump it when
+/// Version of the on-disk layout, kept in `.ducko/format.json`. Bump it when
 /// a change would make older builds misread the library. 4: real folders,
-/// files named by title, internal data in `.quiet/`.
+/// files named by title, internal data in `.ducko/`.
 pub const FORMAT: u32 = 4;
 /// The hidden folder holding the library's own data.
-pub const INTERNAL: &str = ".quiet";
+pub const INTERNAL: &str = ".ducko";
 /// The hidden folder holding pasted and inserted images and attachments.
 pub const ASSETS: &str = ".assets";
 
@@ -331,7 +331,7 @@ struct FormatMarker {
     format: u32,
 }
 
-/// An entry of `.quiet/index.json`, keyed by the path relative to the
+/// An entry of `.ducko/index.json`, keyed by the path relative to the
 /// library (folders end in `/`): what the files cannot say.
 #[derive(Clone, Debug, Serialize, Deserialize)]
 struct Attached {
@@ -544,8 +544,8 @@ fn library_key(root: &Path) -> String {
 /// temporary folder (scripted runs), which never touch the real one.
 fn local_file_for(root: &Path) -> PathBuf {
     let tmp = std::env::temp_dir();
-    let base = if cfg!(test) || root.starts_with(&tmp) || tmp.canonicalize().is_ok_and(|t| root.starts_with(t)) { tmp.join("quiet-md-local") }
-        else { dirs::data_local_dir().unwrap_or_else(std::env::temp_dir).join("quiet-md") };
+    let base = if cfg!(test) || root.starts_with(&tmp) || tmp.canonicalize().is_ok_and(|t| root.starts_with(t)) { tmp.join("ducko-local") }
+        else { dirs::data_local_dir().unwrap_or_else(std::env::temp_dir).join("ducko") };
     base.join("libraries").join(format!("{}.json", library_key(root)))
 }
 
@@ -569,21 +569,21 @@ fn derive_tree(index: &mut HashMap<String, Meta>) {
 fn ext_of(m: &Meta) -> &'static str { if m.markdown { "md" } else { "xml" } }
 
 impl Store {
-    /// `QUIET_MD_HOME`, else the folder picked at first launch (`library.json`
+    /// `DUCKO_HOME`, else the folder picked at first launch (`library.json`
     /// outside the library, since everything else lives inside it), else a
     /// folder of its own in the user's Documents, where they can see and back it up.
     pub fn root_dir() -> PathBuf {
         if let Some(p) = ROOT.read().unwrap().clone() { return p }
-        std::env::var_os("QUIET_MD_HOME").map(PathBuf::from)
+        std::env::var_os("DUCKO_HOME").map(PathBuf::from)
             .or_else(|| std::fs::read(Self::location_file()).ok().and_then(|b| serde_json::from_slice::<Location>(&b).ok()).map(|l| l.path).filter(|p| p.is_absolute()))
             .unwrap_or_else(Self::default_root)
     }
 
     pub fn default_root() -> PathBuf {
-        dirs::document_dir().or_else(|| dirs::home_dir().map(|h| h.join("Documents"))).unwrap_or_else(|| PathBuf::from(".")).join("Quiet.md")
+        dirs::document_dir().or_else(|| dirs::home_dir().map(|h| h.join("Documents"))).unwrap_or_else(|| PathBuf::from(".")).join("ducko")
     }
 
-    /// The library's own data (`.quiet/`): preferences, shortcuts, themes,
+    /// The library's own data (`.ducko/`): preferences, shortcuts, themes,
     /// the index and the 回收站. Created on demand.
     pub fn internal_dir() -> PathBuf {
         let root = Self::root_dir();
@@ -618,15 +618,15 @@ impl Store {
 
     /// The pointer to a library outside Documents; per user, never synced.
     pub fn location_file() -> PathBuf {
-        dirs::data_local_dir().unwrap_or_else(std::env::temp_dir).join("quiet-md").join("library.json")
+        dirs::data_local_dir().unwrap_or_else(std::env::temp_dir).join("ducko").join("library.json")
     }
 
     /// Use `root` for the rest of this run, and from now on unless
-    /// `QUIET_MD_HOME` says otherwise. The default location needs no pointer.
+    /// `DUCKO_HOME` says otherwise. The default location needs no pointer.
     pub fn set_root_dir(root: PathBuf) -> Result<()> {
         let file = Self::location_file();
-        // Test runs (`QUIET_MD_HOME`) never move the real library.
-        if std::env::var_os("QUIET_MD_HOME").is_some() {}
+        // Test runs (`DUCKO_HOME`) never move the real library.
+        if std::env::var_os("DUCKO_HOME").is_some() {}
         else if root == Self::default_root() { let _ = std::fs::remove_file(&file); }
         else {
             std::fs::create_dir_all(file.parent().unwrap())?;
@@ -666,14 +666,14 @@ impl Store {
     pub fn migration_state(root: &Path) -> MigrationState { migrate::state(root) }
 
     /// Move the library at `root` to the new layout (FORMAT 4), or leave it
-    /// as it was on failure. The old layout is kept in `.quiet/` as a backup.
+    /// as it was on failure. The old layout is kept in `.ducko/` as a backup.
     pub fn migrate(root: &Path) -> Result<MigrationReport> {
         let mut warnings = vec![];
         migrate::run(root, &mut warnings)
     }
 
     /// Go back to the layout from before the move: the backup returns, and what
-    /// the new layout holds now is set aside in `.quiet/` (not deleted).
+    /// the new layout holds now is set aside in `.ducko/` (not deleted).
     pub fn restore_backup(root: &Path) -> Result<RestoreReport> { migrate::restore(root) }
 
     /// Once per launch: count it, and remove a move's backup once it is 30
@@ -692,11 +692,11 @@ impl Store {
         let flat = Self::flat_at(&root);
         if flat {
             let format = reread::<FormatMarker>(&root.join("format.json")).map_or(0, |m| m.format);
-            anyhow::ensure!(format <= FORMAT, "这个文档库由更新版本的 Quiet.md 创建，请升级后再打开");
+            anyhow::ensure!(format <= FORMAT, "这个文档库由更新版本的 ducko 创建，请升级后再打开");
             if !root.join("format.json").exists() { write_atomic(&root.join("format.json"), &serde_json::to_vec_pretty(&FormatMarker { format })?)?; }
         } else {
             match std::fs::read(&marker).ok().and_then(|b| serde_json::from_slice::<FormatMarker>(&b).ok()) {
-                Some(m) if m.format > FORMAT => anyhow::bail!("这个文档库由更新版本的 Quiet.md 创建，请升级后再打开"),
+                Some(m) if m.format > FORMAT => anyhow::bail!("这个文档库由更新版本的 ducko 创建，请升级后再打开"),
                 // Moved to the new layout; what was left of the old one is set aside.
                 Some(_) => if migrate::legacy(&root) { migrate::finish(&root, &mut warnings); },
                 None => {
@@ -737,8 +737,8 @@ impl Store {
         Ok(store)
     }
 
-    /// Where the library keeps its own files: `.quiet/`, the top in the old layout.
-    /// 版本历史 lives in `.quiet/` in either layout, so a library that has
+    /// Where the library keeps its own files: `.ducko/`, the top in the old layout.
+    /// 版本历史 lives in `.ducko/` in either layout, so a library that has
     /// not moved to folders yet never grows a visible `history/` folder.
     fn history_base(&self) -> PathBuf { self.root.join(INTERNAL) }
     fn internal(&self) -> PathBuf { if self.flat { self.root.clone() } else { self.root.join(INTERNAL) } }
@@ -755,7 +755,7 @@ impl Store {
 
     fn read_local(&self) -> Local { reread(&self.local_file()).unwrap_or_default() }
 
-    /// The in-memory index from `.quiet/index.json` and this computer's state.
+    /// The in-memory index from `.ducko/index.json` and this computer's state.
     /// Folders without an entry of their own (made in the Finder) get one.
     fn from_disk(&self, disk: &DiskIndex, local: &Local) -> HashMap<String, Meta> {
         let mut index: HashMap<String, Meta> = HashMap::new();
@@ -816,7 +816,7 @@ impl Store {
 
     fn recovery_dir(&self) -> PathBuf {
         dirs::data_local_dir().unwrap_or_else(std::env::temp_dir)
-            .join("quiet-md/recovery").join(library_key(&self.root))
+            .join("ducko/recovery").join(library_key(&self.root))
     }
 
     pub fn recover_later(&self, doc: &Document) -> Result<()> {
@@ -946,9 +946,9 @@ impl Store {
         f.lock()?;
         let lock = WriteLock(Some(f));
         // Another copy moved it to the new layout meanwhile: nothing more is written here.
-        anyhow::ensure!(!self.flat || !self.root.join(INTERNAL).join("format.json").exists(), "文档库已升级到新格式，请重新打开 Quiet.md");
+        anyhow::ensure!(!self.flat || !self.root.join(INTERNAL).join("format.json").exists(), "文档库已升级到新格式，请重新打开 ducko");
         let marker: FormatMarker = serde_json::from_slice(&std::fs::read(self.internal().join("format.json"))?)?;
-        anyhow::ensure!(marker.format <= FORMAT, "这个文档库由更新版本的 Quiet.md 创建，请升级后再打开");
+        anyhow::ensure!(marker.format <= FORMAT, "这个文档库由更新版本的 ducko 创建，请升级后再打开");
         // An unreadable index is not judged here (that is `open`'s job): the
         // version in memory is written back unchanged.
         if self.flat {
@@ -2070,9 +2070,9 @@ mod tests {
         s.load_for_edit(&id, false).unwrap();
         s.save(&id, &doc_with("second", "beta")).unwrap();
         assert_eq!(s.versions(&id).len(), 1);
-        // Snapshots stay in `.quiet/`: never a folder in the sidebar or the Finder,
+        // Snapshots stay in `.ducko/`: never a folder in the sidebar or the Finder,
         // and still found after the retitle renamed the file.
-        assert!(lib.0.join(".quiet").join("history").join(&id).is_dir());
+        assert!(lib.0.join(".ducko").join("history").join(&id).is_dir());
         assert_eq!(s.list().iter().map(|e| e.id.clone()).collect::<Vec<_>>(), std::slice::from_ref(&id));
         let name = s.versions(&id)[0].name.clone();
         assert_eq!(s.version_text(&id, &name).unwrap(), docxml::serialize(&doc_with("first", "alpha")));
@@ -2104,7 +2104,7 @@ mod tests {
         assert!(s.versions(&id).len() >= 2);
         s.delete(&id, None).unwrap();
         assert!(s.versions(&id).is_empty());
-        assert!(lib.0.join(".quiet").join("history-trash").join(&id).is_dir());
+        assert!(lib.0.join(".ducko").join("history-trash").join(&id).is_dir());
         s.restore(&id).unwrap();
         assert!(!s.versions(&id).is_empty());
         s.delete(&id, None).unwrap();
@@ -2172,7 +2172,7 @@ mod tests {
         assert!(!std::fs::read_to_string(&file).unwrap().contains("Renamed"));
         // Through the 回收站 and back as Markdown.
         s.delete(&id, None).unwrap();
-        assert!(lib.0.join(".quiet/trash").join(format!("{id}.md")).is_file());
+        assert!(lib.0.join(".ducko/trash").join(format!("{id}.md")).is_file());
         assert_eq!(s.list_trash()[0].title, "Renamed");
         s.restore(&id).unwrap();
         assert!(file.is_file());
@@ -2318,8 +2318,8 @@ mod tests {
         let lib = Lib::new("lock-failure");
         let mut s = lib.open();
         let id = s.create_from(&doc("original")).unwrap();
-        std::fs::remove_file(lib.0.join(".quiet/.lock")).unwrap();
-        std::fs::create_dir(lib.0.join(".quiet/.lock")).unwrap();
+        std::fs::remove_file(lib.0.join(".ducko/.lock")).unwrap();
+        std::fs::create_dir(lib.0.join(".ducko/.lock")).unwrap();
         assert!(s.save(&id, &doc("lost")).is_err());
         assert_eq!(s.load(&id).unwrap().title.text, "original");
         assert!(s.create_from(&doc("new")).is_err());
@@ -2384,10 +2384,10 @@ mod tests {
         assert_eq!(list.len(), 1);
         assert_eq!(list[0].title, "一");
         assert!(list[0].meta.pinned);
-        assert!(lib.0.join(".quiet/format.json").is_file());
+        assert!(lib.0.join(".ducko/format.json").is_file());
         // The library holds the note and its own hidden folder, nothing else.
         let names: Vec<String> = std::fs::read_dir(&lib.0).unwrap().flatten().map(|e| e.file_name().to_string_lossy().into_owned()).collect();
-        assert_eq!({ let mut n = names; n.sort(); n }, [".quiet", "一.xml"]);
+        assert_eq!({ let mut n = names; n.sort(); n }, [".ducko", "一.xml"]);
     }
 
     #[test]
@@ -2462,13 +2462,13 @@ mod tests {
         // The second write left the first (pinned: false) as the backup;
         // one more makes the backup pinned too.
         s.set_starred(&id, true).unwrap();
-        std::fs::write(lib.0.join(".quiet/index.json"), b"{ not json").unwrap();
+        std::fs::write(lib.0.join(".ducko/index.json"), b"{ not json").unwrap();
         let mut s = lib.open();
         assert_eq!(s.warnings.len(), 1, "{:?}", s.warnings);
         assert!(s.warnings[0].contains("已从备份恢复"));
         assert!(s.list()[0].meta.pinned);
         // The damaged file is kept for inspection, not overwritten.
-        let kept = std::fs::read_dir(lib.0.join(".quiet")).unwrap().flatten().filter(|e| e.file_name().to_string_lossy().starts_with("index.json.corrupt-")).count();
+        let kept = std::fs::read_dir(lib.0.join(".ducko")).unwrap().flatten().filter(|e| e.file_name().to_string_lossy().starts_with("index.json.corrupt-")).count();
         assert_eq!(kept, 1);
     }
 
@@ -2477,8 +2477,8 @@ mod tests {
         let lib = Lib::new("nobak");
         let mut s = lib.open();
         s.create_from(&doc("一")).unwrap();
-        std::fs::write(lib.0.join(".quiet/index.json"), b"garbage").unwrap();
-        let _ = std::fs::remove_file(lib.0.join(".quiet/index.json.bak"));
+        std::fs::write(lib.0.join(".ducko/index.json"), b"garbage").unwrap();
+        let _ = std::fs::remove_file(lib.0.join(".ducko/index.json.bak"));
         let mut s = lib.open();
         assert!(s.warnings[0].contains("没有可用备份"));
         assert_eq!(s.list().len(), 1);
@@ -2511,7 +2511,7 @@ mod tests {
         // opening it here could misread and then rewrite it, so it is refused.
         let lib = Lib::new("format");
         drop(lib.open());
-        std::fs::write(lib.0.join(".quiet/format.json"), format!("{{\"format\": {}}}", FORMAT + 1)).unwrap();
+        std::fs::write(lib.0.join(".ducko/format.json"), format!("{{\"format\": {}}}", FORMAT + 1)).unwrap();
         let err = Store::open_at(lib.0.clone()).err().expect("a newer library must not open");
         assert!(err.to_string().contains("更新版本"));
     }
@@ -2545,9 +2545,9 @@ mod tests {
         let a = s.create_from(&doc("一")).unwrap();
         s.delete(&a, None).unwrap();
         // Swap the folder for a file: read_dir fails.
-        let trash = lib.0.join(".quiet/trash");
+        let trash = lib.0.join(".ducko/trash");
         let index = std::fs::read(trash.join("index.json")).unwrap();
-        std::fs::rename(&trash, lib.0.join(".quiet/trash-away")).unwrap();
+        std::fs::rename(&trash, lib.0.join(".ducko/trash-away")).unwrap();
         std::fs::write(&trash, b"").unwrap();
         let mut s = Store { file_changes: vec![], root: lib.0.clone(), index: HashMap::new(), flat: false, migrated: None, trash: serde_json::from_slice(&index).unwrap(), warnings: vec![], loaded: Default::default(), copied: Default::default(), parsed: HashMap::new(), batch: Default::default() };
         assert_eq!(s.list_trash().len(), 1);
@@ -2672,7 +2672,7 @@ mod tests {
     /// files are named by title (clashes numbered, illegal characters
     /// replaced), links become relative paths, Markdown stays Markdown,
     /// 本机文件 stay where they are, the 回收站 and the app's own files move
-    /// into `.quiet/`, and the old layout is kept whole as a backup.
+    /// into `.ducko/`, and the old layout is kept whole as a backup.
     #[test]
     fn format_3_moves_to_real_folders() {
         let lib = Lib::new("to-folders");
@@ -2730,7 +2730,7 @@ mod tests {
         assert_eq!(Store::migration_state(&lib.0), MigrationState::Silent);
         let report = Store::migrate(&lib.0).unwrap();
         assert_eq!((report.docs, report.folders), (before.len(), 7));
-        assert_eq!(report.backup, lib.0.join(".quiet").join(migrate::BACKUP));
+        assert_eq!(report.backup, lib.0.join(".ducko").join(migrate::BACKUP));
         assert_eq!(Store::migration_state(&lib.0), MigrationState::NotNeeded);
         let mut s = lib.open();
         let list = s.list();
@@ -2775,20 +2775,20 @@ mod tests {
         // Attached and local information.
         assert!(by[w1.as_str()].meta.pinned);
         assert_eq!(by[w1.as_str()].meta.opened, 77);
-        let index = std::fs::read_to_string(lib.0.join(".quiet/index.json")).unwrap();
+        let index = std::fs::read_to_string(lib.0.join(".ducko/index.json")).unwrap();
         assert!(!index.contains("opened") && !index.contains("外面") && index.contains("\"工作/子/\""));
         assert!(by[local.as_str()].meta.local());
         assert_eq!(s.load(&local).unwrap().plain_text(), "外面的笔记");
         assert!(local_file.is_file());
         assert_eq!(s.settings().window_size, Some([800., 600.]));
         assert_eq!(s.settings().sidebar_width, Some(250.));
-        assert!(lib.0.join(".quiet/preferences.json").is_file() && lib.0.join(".quiet/themes/mine.json").is_file());
+        assert!(lib.0.join(".ducko/preferences.json").is_file() && lib.0.join(".ducko/themes/mine.json").is_file());
         // What the user sees: their folders and notes only.
         let mut top_names: Vec<String> = std::fs::read_dir(&lib.0).unwrap().flatten().map(|e| e.file_name().to_string_lossy().into_owned()).collect();
         top_names.sort();
-        assert_eq!(top_names, [".assets", ".quiet", "CON_.xml", "a／b", "同名", "同名 2", "周报.xml", "孤儿", "工作", "索引.xml"]);
+        assert_eq!(top_names, [".assets", ".ducko", "CON_.xml", "a／b", "同名", "同名 2", "周报.xml", "孤儿", "工作", "索引.xml"]);
         // The old layout, whole, as a backup.
-        let backup = lib.0.join(".quiet").join(migrate::BACKUP);
+        let backup = lib.0.join(".ducko").join(migrate::BACKUP);
         for id in before.keys() { assert!(backup.join("docs").join(format!("{id}.xml")).is_file() || backup.join("docs").join(format!("{id}.md")).is_file()); }
         assert!(backup.join("index.json").is_file() && backup.join("format.json").is_file() && backup.join("trash/index.json").is_file());
         // The 回收站 came along.
@@ -2828,12 +2828,12 @@ mod tests {
         old.write();
         std::fs::create_dir_all(lib.0.join("assets")).unwrap();
         let snapshot = |root: &Path| { let mut v = vec![]; fn walk(d: &Path, v: &mut Vec<(PathBuf, Vec<u8>)>) { for e in std::fs::read_dir(d).unwrap().flatten() { let p = e.path(); if p.is_dir() { v.push((p.clone(), vec![])); walk(&p, v); } else { v.push((p.clone(), std::fs::read(&p).unwrap())); } } } walk(root, &mut v); v.sort(); v };
-        let before: Vec<_> = snapshot(&lib.0).into_iter().filter(|(p, _)| !p.starts_with(lib.0.join(".quiet")) && !p.ends_with(".lock")).collect();
+        let before: Vec<_> = snapshot(&lib.0).into_iter().filter(|(p, _)| !p.starts_with(lib.0.join(".ducko")) && !p.ends_with(".lock")).collect();
         let err = Store::migrate(&lib.0).expect_err("the injected failure");
         assert!(err.to_string().contains("已保持原样"), "{err}");
-        let after: Vec<_> = snapshot(&lib.0).into_iter().filter(|(p, _)| !p.starts_with(lib.0.join(".quiet")) && !p.ends_with(".lock")).collect();
+        let after: Vec<_> = snapshot(&lib.0).into_iter().filter(|(p, _)| !p.starts_with(lib.0.join(".ducko")) && !p.ends_with(".lock")).collect();
         assert_eq!(after, before);
-        assert!(!lib.0.join(".quiet/format.json").exists() && !lib.0.join(".quiet/index.json").exists());
+        assert!(!lib.0.join(".ducko/format.json").exists() && !lib.0.join(".ducko/index.json").exists());
         // It still opens and works, in the old layout.
         let mut s = lib.open();
         assert_eq!(s.list().len(), 5);
@@ -2845,10 +2845,10 @@ mod tests {
         let mut old = Old::new(&crashed, 3);
         let a = old.doc("甲", Meta::default());
         old.write();
-        std::fs::create_dir_all(crashed.0.join(".quiet")).unwrap();
+        std::fs::create_dir_all(crashed.0.join(".ducko")).unwrap();
         std::fs::create_dir_all(crashed.0.join("半路")).unwrap();
         std::fs::write(crashed.0.join("甲.xml"), b"half").unwrap();
-        std::fs::write(crashed.0.join(".quiet/migration.json"), b"{\"files\":[\"\xe7\x94\xb2.xml\"],\"dirs\":[\"\xe5\x8d\x8a\xe8\xb7\xaf\"],\"internal\":[],\"assets\":false}").unwrap();
+        std::fs::write(crashed.0.join(".ducko/migration.json"), b"{\"files\":[\"\xe7\x94\xb2.xml\"],\"dirs\":[\"\xe5\x8d\x8a\xe8\xb7\xaf\"],\"internal\":[],\"assets\":false}").unwrap();
         let mut s = crashed.migrated();
         assert!(!crashed.0.join("半路").exists());
         assert_eq!(s.load(&a).unwrap().title.text, "甲");
@@ -2860,7 +2860,7 @@ mod tests {
         drop(s);
         let mut s = crashed.open();
         assert!(!crashed.0.join("format.json").exists() && !crashed.0.join("docs").exists());
-        assert!(crashed.0.join(".quiet").join(migrate::BACKUP).join("format.json.2").is_file());
+        assert!(crashed.0.join(".ducko").join(migrate::BACKUP).join("format.json.2").is_file());
         assert_eq!(s.list().len(), 1);
     }
 
@@ -2907,7 +2907,7 @@ mod tests {
     }
 
     /// What is done in the Finder shows: new folders and files, removed ones,
-    /// iCloud files not downloaded yet. Deleting `.quiet/` loses only the
+    /// iCloud files not downloaded yet. Deleting `.ducko/` loses only the
     /// attached information: notes, folders and links are all in the files.
     #[test]
     fn the_disk_is_the_library() {
@@ -2935,7 +2935,7 @@ mod tests {
         std::fs::remove_dir_all(lib.0.join("外部")).unwrap();
         assert_eq!(s.list().len(), 3);
         drop(s);
-        std::fs::remove_dir_all(lib.0.join(".quiet")).unwrap();
+        std::fs::remove_dir_all(lib.0.join(".ducko")).unwrap();
         let mut s = lib.open();
         let list = s.list();
         assert_eq!(list.len(), 3);
@@ -3007,7 +3007,7 @@ mod tests {
         let list = s.list();
         assert_eq!(list.len(), 5);
         assert_eq!(folders_of(&list, &b), ["改名夹"]);
-        assert!(!lib.0.join(".quiet").exists() && !lib.0.join("改名夹").exists(), "nothing of the new layout yet");
+        assert!(!lib.0.join(".ducko").exists() && !lib.0.join("改名夹").exists(), "nothing of the new layout yet");
         let index: HashMap<String, Meta> = serde_json::from_slice(&std::fs::read(lib.0.join("index.json")).unwrap()).unwrap();
         assert!(index[&a].pinned && index[&a].opened > 0 && index[&md].markdown);
         assert_eq!(serde_json::from_slice::<FormatMarker>(&std::fs::read(lib.0.join("format.json")).unwrap()).unwrap().format, 3);
@@ -3035,14 +3035,14 @@ mod tests {
         let mut old = Old::new(&lib, 3);
         let abs = |rel: &str| lib.0.join(rel).to_string_lossy().into_owned();
         let image = |src: String| Block::new(BlockKind::Image { src_kind: "src".into(), src, width: None, height: None, caption: None, crop: None }, RichText::default());
-        let moved = std::env::temp_dir().join("elsewhere/Quiet.md/assets/p.png").to_string_lossy().into_owned();
+        let moved = std::env::temp_dir().join("elsewhere/ducko/assets/p.png").to_string_lossy().into_owned();
         let d = Document { title: RichText::plain("图"), blocks: vec![
             image(abs("assets/p.png")),
             Block::new(BlockKind::File(FileBlock { src_kind: "path".into(), src: abs("assets/files/1234/报告.pdf"), name: "报告.pdf".into(), view: FileView::Card }), RichText::default()),
             image(moved.clone()),
             image(abs("assets/gone.png")),
             // Only through `.assets/x/` once moved: the fallback must not follow it.
-            image(std::env::temp_dir().join("elsewhere/Quiet.md/assets/x/../../secret.png").to_string_lossy().into_owned()),
+            image(std::env::temp_dir().join("elsewhere/ducko/assets/x/../../secret.png").to_string_lossy().into_owned()),
         ], ..Default::default() };
         let id = old.put(&d, Meta::default());
         old.write();
@@ -3083,10 +3083,10 @@ mod tests {
         std::thread::sleep(std::time::Duration::from_millis(50));
         s.save(&a, &doc("甲改")).unwrap();
         s.create_from(&doc("新的")).unwrap();
-        std::fs::write(lib.0.join(".quiet/preferences.json"), b"{\"new\":1}").unwrap();
+        std::fs::write(lib.0.join(".ducko/preferences.json"), b"{\"new\":1}").unwrap();
         drop(s);
         // Pruning: not before both 30 days and three launches.
-        let info = lib.0.join(".quiet").join(migrate::BACKUP).with_extension("json");
+        let info = lib.0.join(".ducko").join(migrate::BACKUP).with_extension("json");
         for _ in 0..5 { Store::prune_backups(&lib.0); }
         assert!(Store::backup_dir(&lib.0).is_some());
         let report = Store::restore_backup(&lib.0).unwrap();
@@ -3095,7 +3095,7 @@ mod tests {
         assert_eq!(std::fs::read(lib.0.join("docs").join(format!("{a}.xml"))).unwrap(), original);
         assert!(lib.0.join("assets/p.png").is_file() && !lib.0.join(".assets").exists());
         assert_eq!(std::fs::read(lib.0.join("preferences.json")).unwrap(), b"{\"new\":1}");
-        assert!(!lib.0.join("夹").exists() && !lib.0.join(".quiet/format.json").exists());
+        assert!(!lib.0.join("夹").exists() && !lib.0.join(".ducko/format.json").exists());
         assert_eq!(Store::migration_state(&lib.0), MigrationState::NeedsConsent(ConsentReason::Restored));
         let mut s = lib.open();
         assert!(s.flat);
@@ -3117,8 +3117,8 @@ mod tests {
     #[test]
     fn synced_folders_are_recognised() {
         let home = dirs::home_dir().unwrap();
-        assert_eq!(sync_of(&home.join("Library/Mobile Documents/com~apple~CloudDocs/Quiet.md")), SyncService::ICloud);
-        assert_eq!(sync_of(&home.join("Library/CloudStorage/OneDrive-Personal/Quiet.md")), SyncService::Provider("OneDrive".into()));
+        assert_eq!(sync_of(&home.join("Library/Mobile Documents/com~apple~CloudDocs/ducko")), SyncService::ICloud);
+        assert_eq!(sync_of(&home.join("Library/CloudStorage/OneDrive-Personal/ducko")), SyncService::Provider("OneDrive".into()));
         assert_eq!(sync_of(&std::env::temp_dir().join("x")), SyncService::Local);
         // An old library with a conflict copy left by syncing asks first.
         let lib = Lib::new("conflict");
@@ -3138,7 +3138,7 @@ mod tests {
             if flat { Old::new(&lib, 3).write(); }
             let mut s = lib.open();
             assert_eq!(s.flat, flat);
-            let index = lib.0.join(if flat { "index.json" } else { ".quiet/index.json" });
+            let index = lib.0.join(if flat { "index.json" } else { ".ducko/index.json" });
             let journal = s.track_file_changes();
             let (f, ids) = s.batch(|s| {
                 let f = s.create_folder("导入", None).unwrap();
@@ -3222,7 +3222,7 @@ mod tests {
     }
 
     /// 导入文件夹和删除大文件夹的耗时：
-    /// `cargo test --release -p fdl_core import_speed -- --ignored --nocapture`.
+    /// `cargo test --release -p ducko_core import_speed -- --ignored --nocapture`.
     #[test]
     #[ignore]
     fn import_speed() {

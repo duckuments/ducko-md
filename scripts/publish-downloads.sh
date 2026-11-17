@@ -1,19 +1,19 @@
 #!/bin/bash
-# Upload release packages to the download.quiet.md R2 bucket: an immutable copy under v<version>/ and the
+# Upload release packages to the download.ducko.app R2 bucket: an immutable copy under v<version>/ and the
 # fixed latest/ link the site and README point at. Pass the macOS ZIP, the Windows installer, or both:
-#   scripts/publish-downloads.sh dist-release.XXXX/quiet-md-0.1.2-macos-arm64.zip dist/windows/signed/quiet-md-0.1.2-windows-x64-setup.exe
-# Each package is signed with minisign (MINISIGN_KEY, default ~/.minisign/quiet-md.key) and checked against
+#   scripts/publish-downloads.sh dist-release.XXXX/ducko-0.1.2-macos-arm64.zip dist/windows/signed/ducko-0.1.2-windows-x64-setup.exe
+# Each package is signed with minisign (MINISIGN_KEY, default ~/.minisign/ducko.key) and checked against
 # packaging/update-key.pub; latest/update-<platform>.json, written last, is what the app's updater reads.
 # The key's password comes from the login keychain when stored there once, else minisign asks:
-#   security add-generic-password -U -s quiet-md-minisign -a "$USER" -w
+#   security add-generic-password -U -s ducko-minisign -a "$USER" -w
 # DRY_RUN=1 prints the uploads without signing or sending them. WRANGLER overrides the wrangler command.
 set -euo pipefail
 cd "$(dirname "$0")/.."
 [ $# -ge 1 ] || { sed -n '2,9p' "$0" | sed 's/^# \{0,1\}//'; exit 1; }
-bucket=quiet-md-downloads
-host=https://download.quiet.md
+bucket=ducko-downloads
+host=https://download.ducko.app
 wrangler=${WRANGLER:-npx -y wrangler@4}
-key=${MINISIGN_KEY:-$HOME/.minisign/quiet-md.key}
+key=${MINISIGN_KEY:-$HOME/.minisign/ducko.key}
 pub=packaging/update-key.pub
 expected=$(sed -n 's/^version = "\(.*\)"/\1/p' Cargo.toml | head -1)
 work=$(mktemp -d); trap 'rm -rf "$work"' EXIT
@@ -28,19 +28,19 @@ if [ -z "${DRY_RUN:-}" ]; then
   command -v minisign >/dev/null || { echo "minisign is not installed (brew install minisign)" >&2; exit 1; }
   grep -q '^RW' "$pub" || { echo "$pub has no public key yet; see the comment in it" >&2; exit 1; }
   [ -f "$key" ] || { echo "Missing signing key $key (set MINISIGN_KEY)" >&2; exit 1; }
-  password=$(security find-generic-password -s quiet-md-minisign -a "$USER" -w 2>/dev/null || true)
+  password=$(security find-generic-password -s ducko-minisign -a "$USER" -w 2>/dev/null || true)
 fi
 
 for file in "$@"; do
   name=$(basename "$file")
   case "$name" in
-    quiet-md-*-macos-arm64.zip) platform=macos-arm64; latest=quiet-md-macos-arm64.zip; type=application/zip ;;
-    quiet-md-*-macos-x86_64.zip) platform=macos-x86_64; latest=quiet-md-macos-x86_64.zip; type=application/zip ;;
-    quiet-md-*-windows-x64-setup.exe) platform=windows-x64; latest=quiet-md-windows-x64-setup.exe; type=application/vnd.microsoft.portable-executable ;;
-    quiet-md-*-x86_64.AppImage) platform=linux-x86_64; latest=quiet-md-x86_64.AppImage; type=application/octet-stream ;;
+    ducko-*-macos-arm64.zip) platform=macos-arm64; latest=ducko-macos-arm64.zip; type=application/zip ;;
+    ducko-*-macos-x86_64.zip) platform=macos-x86_64; latest=ducko-macos-x86_64.zip; type=application/zip ;;
+    ducko-*-windows-x64-setup.exe) platform=windows-x64; latest=ducko-windows-x64-setup.exe; type=application/vnd.microsoft.portable-executable ;;
+    ducko-*-x86_64.AppImage) platform=linux-x86_64; latest=ducko-x86_64.AppImage; type=application/octet-stream ;;
     *) echo "Unrecognised package name: $name" >&2; exit 1 ;;
   esac
-  version=${name#quiet-md-}; version=${version%%-*}
+  version=${name#ducko-}; version=${version%%-*}
   [ "$version" = "$expected" ] || { echo "$name is $version but Cargo.toml says $expected" >&2; exit 1; }
   [ -f "$file" ] || { echo "Missing $file" >&2; exit 1; }
   # Refuse a package that does not match the checksum written next to it by the build scripts.

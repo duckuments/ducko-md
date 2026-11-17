@@ -25,12 +25,12 @@ except ImportError:
 index, t = {}, 1794500000
 for i in range(n):
     if i: shutil.copy(photo, os.path.join(out, 'assets', 'photos', f'{i}.jpg'))
-    id = str(uuid.uuid5(uuid.NAMESPACE_URL, f'quiet-md-photo-{i}'))
+    id = str(uuid.uuid5(uuid.NAMESPACE_URL, f'ducko-photo-{i}'))
     open(os.path.join(out, 'docs', id + '.xml'), 'w').write(
         f'<title>Photo {i + 1}</title>\n<p>A trip, a dinner, a whiteboard: one phone photo in a short note.</p>\n'
         f'<img src="assets/photos/{i}.jpg" align="center"/>\n<p>Some words after the photo.</p>\n')
     index[id] = {'created': t + i, 'modified': t + i, 'pinned': False, 'opened': t + i, 'root_order': i}
-id = str(uuid.uuid5(uuid.NAMESPACE_URL, 'quiet-md-photo-notes'))
+id = str(uuid.uuid5(uuid.NAMESPACE_URL, 'ducko-photo-notes'))
 open(os.path.join(out, 'docs', id + '.xml'), 'w').write('<title>Notes</title>\n<p>Only text here.</p>\n')
 index[id] = {'created': t + n, 'modified': t + n, 'pinned': False, 'opened': t + n, 'root_order': n}
 json.dump(index, open(os.path.join(out, 'index.json'), 'w'), indent=2)

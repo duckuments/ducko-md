@@ -1,6 +1,6 @@
 # Document themes (CSS)
 
-Each Quiet.md document theme is a CSS file. Choosing a theme means choosing that CSS; clicking "Edit CSS" in Settings › Appearance opens it in your editor, and once you save it, documents in every window are immediately repainted with the new style.
+Each ducko document theme is a CSS file. Choosing a theme means choosing that CSS; clicking "Edit CSS" in Settings › Appearance opens it in your editor, and once you save it, documents in every window are immediately repainted with the new style.
 
 The Feishu (Lark) theme is the default on first launch; an existing theme choice is kept. The dropdown lists Feishu, Craft, Notion, and Obsidian, showing options only; selecting one updates the page preview below.
 

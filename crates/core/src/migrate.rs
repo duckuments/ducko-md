@@ -1,11 +1,11 @@
 //! FORMAT 3 → 4: the old layout (`docs/<id>.xml`, folders only in
 //! `index.json`) becomes real folders and files named by title, with links
-//! rewritten as relative paths and the library's own data in `.quiet/`.
+//! rewritten as relative paths and the library's own data in `.ducko/`.
 //!
 //! Nothing old is changed until the end: the new files are written beside the
-//! old ones (each path listed in `.quiet/migration.json` first), then
-//! `.quiet/format.json` commits the move and the old layout is set aside,
-//! whole, in `.quiet/before-folders-4/`. A failure, or a crash found on the
+//! old ones (each path listed in `.ducko/migration.json` first), then
+//! `.ducko/format.json` commits the move and the old layout is set aside,
+//! whole, in `.ducko/before-folders-4/`. A failure, or a crash found on the
 //! next launch, removes what was written and leaves the old library as it was.
 
 use super::*;
@@ -16,7 +16,7 @@ pub(super) const BACKUP: &str = "before-folders-4";
 const PLAN: &str = "migration.json";
 /// What the old layout kept at the top of the library.
 const OLD: &[&str] = &["docs", "trash", "index.json", "index.json.bak", "format.json", "settings.json", "preferences.json", "preferences.json.tmp", "shortcuts.json", "emoji.json", "themes", "index.before-folders.json"];
-/// Old files the new layout keeps, in `.quiet/`.
+/// Old files the new layout keeps, in `.ducko/`.
 const KEPT: &[&str] = &["settings.json", "preferences.json", "shortcuts.json", "emoji.json", "themes"];
 
 /// Marks a library the user took back to the old layout: not moved again without asking.
@@ -222,7 +222,7 @@ struct Plan {
     files: Vec<String>,
     /// Folders made, outermost first.
     dirs: Vec<String>,
-    /// Entries made in `.quiet/`.
+    /// Entries made in `.ducko/`.
     internal: Vec<String>,
     /// `assets/` renamed `.assets/`.
     assets: bool,
@@ -233,7 +233,7 @@ struct Plan {
 pub(super) fn run(root: &Path, warnings: &mut Vec<String>) -> Result<MigrationReport> {
     let internal = root.join(INTERNAL);
     std::fs::create_dir_all(&internal)?;
-    // Old builds take the lock at the top, this one in `.quiet/`: hold both.
+    // Old builds take the lock at the top, this one in `.ducko/`: hold both.
     let old = std::fs::OpenOptions::new().create(true).truncate(false).write(true).open(root.join(".lock"))?;
     old.lock()?;
     let _old = WriteLock(Some(old));
@@ -244,7 +244,7 @@ pub(super) fn run(root: &Path, warnings: &mut Vec<String>) -> Result<MigrationRe
     let report = |docs, folders| MigrationReport { docs, folders, backup: internal.join(BACKUP) };
     if internal.join("format.json").is_file() { finish(root, warnings); return Ok(report(0, 0)); }
     let format = reread::<FormatMarker>(&root.join("format.json")).map_or(0, |m| m.format);
-    anyhow::ensure!(format <= 3, "这个文档库由更新版本的 Quiet.md 创建，请升级后再打开");
+    anyhow::ensure!(format <= 3, "这个文档库由更新版本的 ducko 创建，请升级后再打开");
     if let Some(plan) = reread::<Plan>(&internal.join(PLAN)) {
         undo(root, &plan);
         let _ = std::fs::remove_file(internal.join(PLAN));
@@ -282,7 +282,7 @@ fn undo(root: &Path, plan: &Plan) {
     if plan.assets && !root.join("assets").exists() && root.join(ASSETS).is_dir() { let _ = std::fs::rename(root.join(ASSETS), root.join("assets")); }
 }
 
-/// Set the old layout aside, whole, in `.quiet/before-folders-4/`.
+/// Set the old layout aside, whole, in `.ducko/before-folders-4/`.
 pub(super) fn finish(root: &Path, warnings: &mut Vec<String>) {
     let backup = root.join(INTERNAL).join(BACKUP);
     let mut names: Vec<String> = OLD.iter().map(|s| s.to_string()).collect();
@@ -298,7 +298,7 @@ pub(super) fn finish(root: &Path, warnings: &mut Vec<String>) {
             while to.symlink_metadata().is_ok() { to = backup.join(format!("{name}.{n}")); n += 1; }
             std::fs::rename(&from, to)
         });
-        if let Err(e) = r { warnings.push(format!("旧格式的 {name} 未能移入 .quiet/{BACKUP}：{e}")); }
+        if let Err(e) = r { warnings.push(format!("旧格式的 {name} 未能移入 .ducko/{BACKUP}：{e}")); }
     }
     let _ = std::fs::remove_file(root.join(".lock"));
 }
@@ -451,7 +451,7 @@ fn migrate(root: &Path, format: u32, plan: &mut Plan, warnings: &mut Vec<String>
         f.write_all(text.as_bytes())?;
         f.sync_all()?;
     }
-    // The 回收站: same files under `.quiet/trash/`, same index.
+    // The 回收站: same files under `.ducko/trash/`, same index.
     let trash_dir = internal.join("trash");
     std::fs::create_dir_all(&trash_dir)?;
     if let Ok(rd) = std::fs::read_dir(root.join("trash")) {

@@ -1,11 +1,11 @@
 [package]
-name = "quiet_md"
+name = "ducko"
 version = "0.1.12"
 edition = "2024"
 description = "A fast, local-first rich text notes app for macOS and Windows, drawn with GPUI and compatible with Feishu DocxXML"
 license = "MIT"
 readme = "README.md"
-authors = ["s1dashu"]
+authors = ["duckuments"]
 keywords = ["notes", "markdown", "editor", "gpui", "local-first"]
 categories = ["text-editors"]
 
@@ -14,13 +14,13 @@ categories = ["text-editors"]
 [features]
 devtools = []
 
-# `fdl_core` is the GPUI-free document engine; plain `cargo test` covers both.
+# `ducko_core` is the GPUI-free document engine; plain `cargo test` covers both.
 [workspace]
 members = ["crates/core"]
 default-members = [".", "crates/core"]
 
 [dependencies]
-fdl_core = { path = "crates/core" }
+ducko_core = { path = "crates/core" }
 anyhow = "1.0.104"
 async-lock = "3.4"
 dirs = "7.0.0"
@@ -68,7 +68,7 @@ xattr = { path = "vendor/xattr" }
 # with `--profile dist` into target/dist: whole-program LTO and no symbol table,
 # a third smaller than `release`. `release` stays the quick everyday build that
 # tests, the harness and the preview use. Line tables go to a separate file
-# (quiet_md.dSYM, .pdb, .dwp) that release.sh keeps beside the package, so
+# (ducko.dSYM, .pdb, .dwp) that release.sh keeps beside the package, so
 # the raw addresses a panic logs can still be resolved (src/logging.rs).
 [profile.dist]
 inherits = "release"

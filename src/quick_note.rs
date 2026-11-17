@@ -67,7 +67,7 @@ pub fn open_document(document: Option<String>, cx: &mut App) {
         app_id: Some(crate::APP_ID.into()),
         window_decorations: if cfg!(target_os = "linux") { Some(WindowDecorations::Client) } else { None },
         titlebar: Some(TitlebarOptions {
-            title: Some(crate::settings::text("Quiet.md · 快速笔记").into()),
+            title: Some(crate::settings::text("ducko · 快速笔记").into()),
             appears_transparent: cfg!(any(target_os = "macos", target_os = "windows")),
             traffic_light_position: Some(point(px(20.), px(crate::app::HEADER_H / 2. - 7.))),
         }),
@@ -185,9 +185,9 @@ pub fn main_window_size(cx: &App) -> gpui::Size<Pixels> {
 /// first-launch film fills it with little cropped, and the 280pt sidebar
 /// leaves the notes 1000. A screen too small for it gets the same shape,
 /// shrunk to leave room for the menu bar and the Dock.
-/// `QUIET_MD_WINDOW=1280x800` sets it instead, for previews at a given size.
+/// `DUCKO_WINDOW=1280x800` sets it instead, for previews at a given size.
 fn first_window_size(cx: &App) -> [f32; 2] {
-    if let Some((w, h)) = std::env::var("QUIET_MD_WINDOW").ok().and_then(|v| { let (w, h) = v.split_once('x')?; Some((w.parse().ok()?, h.parse().ok()?)) }) { return [w, h] }
+    if let Some((w, h)) = std::env::var("DUCKO_WINDOW").ok().and_then(|v| { let (w, h) = v.split_once('x')?; Some((w.parse().ok()?, h.parse().ok()?)) }) { return [w, h] }
     let Some(d) = cx.primary_display().map(|d| d.bounds().size) else { return [1280., 800.] };
     let k = ((f32::from(d.width) - 40.) / 1280.).min(f32::from(d.height) * 0.84 / 800.).min(1.);
     [(1280. * k).round(), (800. * k).round()]

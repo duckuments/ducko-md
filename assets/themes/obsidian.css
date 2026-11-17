@@ -1,5 +1,5 @@
 /*
- * quiet.md document theme: Obsidian
+ * ducko document theme: Obsidian
  *
  * Modeled on the light mode of Obsidian's default theme (variable names follow
  * Obsidian's own --text-normal, --interactive-accent, etc.): purple accent
@@ -14,7 +14,7 @@
 :root {
   --theme-name: "Obsidian";
   --theme-name-en: "Obsidian";
-  --theme-author: "quiet.md";
+  --theme-author: "ducko";
   --theme-description: "Light mode of Obsidian's default theme: purple accent, light gray list markers, larger headings and paragraph spacing.";
   /* How blocks are drawn: craft or feishu */
   --theme-base: craft;

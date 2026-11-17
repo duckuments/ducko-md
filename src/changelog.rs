@@ -80,7 +80,7 @@ const NOTES: &[(&str, &[(&str, &str)])] = &[
         ("Windows：支持粘贴截图和图片文件、导出 PDF 和打印，修复按词删除", "Windows: paste screenshots and image files, export PDF and print, and delete words correctly"),
     ]),
     ("0.1.5", &[
-        ("应用更名为 Quiet.md", "The app is now called Quiet.md"),
+        ("应用更名为 ducko", "The app is now called ducko"),
         ("首页新增批量管理：创建副本、移动、删除", "Manage several documents at once from Home: duplicate, move, delete"),
         ("回收站可以一键清空", "Empty the Trash in one step"),
         ("插入菜单的图标可以用方向键移动", "Arrow keys move through the insert menu's icons"),

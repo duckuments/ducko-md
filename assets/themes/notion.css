@@ -1,5 +1,5 @@
 /*
- * quiet.md document theme: Notion
+ * ducko document theme: Notion
  *
  * Modeled on Notion's default light page: warm gray body text #37352F, 16 / 24 body,
  * a 708-wide body column, system fonts, inline code with a gray background and red text,
@@ -13,7 +13,7 @@
 :root {
   --theme-name: "Notion";
   --theme-name-en: "Notion";
-  --theme-author: "quiet.md";
+  --theme-author: "ducko";
   --theme-description: "Notion's default light page: warm gray body text, compact blocks, inline code with a gray background and red text, dark quote bar.";
   /* How blocks are drawn: craft or feishu */
   --theme-base: craft;

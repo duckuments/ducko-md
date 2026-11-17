@@ -371,15 +371,15 @@ impl Workspace {
                 (
                     crate::settings::tr("把文档库改为真实文件夹？", "Move the library to real folders?").to_string(),
                     why + crate::settings::tr(
-                        "改完后，在访达里看到的文件夹和文件就是侧栏里的样子，文件以标题命名。别的电脑上的旧版 Quiet.md 打不开改过的文档库，请先把它们更新到最新版本。原来的文件会在文档库的 .quiet 文件夹里保留 30 天。",
-                        "Afterwards, Finder shows the same folders and files as the sidebar, each file named by its title. Older versions of Quiet.md on other computers can't open the moved library, so update them first. The old files are kept in the library's .quiet folder for 30 days."),
+                        "改完后，在访达里看到的文件夹和文件就是侧栏里的样子，文件以标题命名。别的电脑上的旧版 ducko 打不开改过的文档库，请先把它们更新到最新版本。原来的文件会在文档库的 .ducko 文件夹里保留 30 天。",
+                        "Afterwards, Finder shows the same folders and files as the sidebar, each file named by its title. Older versions of ducko on other computers can't open the moved library, so update them first. The old files are kept in the library's .ducko folder for 30 days."),
                     crate::settings::tr("改用文件夹", "Move"),
                     false,
                 )
             }
             Confirm::SwitchLibrary(root) => (
                 crate::settings::tr("换用这个文档库？", "Switch to this library?").to_string(),
-                crate::localized_format!("Quiet.md 会保存当前文档并重启，然后打开 {}。原来的文档库留在原处，不会移动或删除，之后可以再换回来。", "Quiet.md saves the open document, restarts and opens {}. The current library stays where it is, nothing is moved or deleted, and you can switch back later.", root.display()),
+                crate::localized_format!("ducko 会保存当前文档并重启，然后打开 {}。原来的文档库留在原处，不会移动或删除，之后可以再换回来。", "ducko saves the open document, restarts and opens {}. The current library stays where it is, nothing is moved or deleted, and you can switch back later.", root.display()),
                 crate::settings::tr("切换并重启", "Switch and Restart"),
                 false,
             ),

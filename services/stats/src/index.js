@@ -1,14 +1,14 @@
-// Daily statistics for Quiet.md, written to the D1 database `quiet-md-stats`.
+// Daily statistics for ducko, written to the D1 database `ducko-stats`.
 // It never sits in front of a download: a cron trigger reads what Cloudflare and
 // GitHub already count and stores daily aggregates (no IPs) in the `metrics` table.
 //
-//   cloudflare  download.quiet.md requests (Cloudflare's analytics keep 31 days)
+//   cloudflare  download.ducko.app requests (Cloudflare's analytics keep 31 days)
 //     cdn.downloads          distinct IPs per file and day: a resumed or segmented
 //                            download counts once      {platform, version, channel, country}
 //     cdn.download_requests  raw GET requests, for comparison  {platform, version, channel, status}
 //     update.checks          distinct IPs fetching an update manifest  {platform, country}
 //     update.check_requests  raw manifest requests     {platform}
-//   site        quiet.md's home page (same analytics, same 31 days)
+//   site        ducko.app's home page (same analytics, same 31 days)
 //     site.visitors          distinct IPs that loaded the page, crawlers left out  {country}
 //     site.pageviews         page loads, crawlers left out  {}
 //   github      the repository (GitHub keeps only running totals)
@@ -17,11 +17,11 @@
 //     github.stars, github.forks, github.watchers, github.open_issues (issues and PRs)  {}
 //
 // channel: "update" is the in-app updater (curl fetching a versioned v<x.y.z>/ package,
-// the URL its manifest names); "cdn" is everything else on download.quiet.md, i.e. the
+// the URL its manifest names); "cdn" is everything else on download.ducko.app, i.e. the
 // site, the README and release-note links opened in a browser. The free plan's analytics
 // have no query string or referer, so the site and the README are not told apart here.
 
-const HOST = 'download.quiet.md', SITE = 'quiet.md';
+const HOST = 'download.ducko.app', SITE = 'ducko.app';
 const CRAWLER = /bot|crawl|spider|slurp|curl|wget|python|go-http|java\/|headless|preview|monitor|scan/i;
 const PLATFORMS = { 'macos-arm64.zip': 'macos-arm64', 'windows-x64-setup.exe': 'windows-x64', 'macos-x86_64.zip': 'macos-x86_64', 'x86_64.AppImage': 'linux-x86_64' };
 const PAGE = 5000; // Bound each analytics response; split full windows below.
@@ -61,13 +61,13 @@ async function run(env, source, day, f) {
 
 // ---- Cloudflare ----
 
-/// What a request to download.quiet.md is: a manifest, a package, or noise (null).
+/// What a request to download.ducko.app is: a manifest, a package, or noise (null).
 export function classify(path, userAgent) {
   let m = path.match(/^\/latest\/update-(.+)\.json$/);
   if (m) return { kind: 'check', platform: m[1] };
-  m = path.match(/^\/latest\/quiet-md-(macos-arm64\.zip|macos-x86_64\.zip|windows-x64-setup\.exe|x86_64\.AppImage)$/);
+  m = path.match(/^\/latest\/ducko-(macos-arm64\.zip|macos-x86_64\.zip|windows-x64-setup\.exe|x86_64\.AppImage)$/);
   if (m) return { kind: 'download', platform: PLATFORMS[m[1]], version: 'latest', channel: 'cdn' };
-  m = path.match(/^\/v(\d+\.\d+\.\d+)\/quiet-md-(\d+\.\d+\.\d+)-(macos-arm64\.zip|macos-x86_64\.zip|windows-x64-setup\.exe|x86_64\.AppImage)$/);
+  m = path.match(/^\/v(\d+\.\d+\.\d+)\/ducko-(\d+\.\d+\.\d+)-(macos-arm64\.zip|macos-x86_64\.zip|windows-x64-setup\.exe|x86_64\.AppImage)$/);
   if (m && m[1] === m[2]) return { kind: 'download', platform: PLATFORMS[m[3]], version: m[1], channel: /^curl\//.test(userAgent || '') ? 'update' : 'cdn' };
   return null;
 }
@@ -160,7 +160,7 @@ async function site(env, day) {
 // ---- GitHub ----
 
 async function github(env, day) {
-  const headers = { 'user-agent': 'quiet-md-stats', accept: 'application/vnd.github+json' };
+  const headers = { 'user-agent': 'ducko-stats', accept: 'application/vnd.github+json' };
   if (env.GITHUB_TOKEN) headers.authorization = `Bearer ${env.GITHUB_TOKEN}`;
   const repo = await fetch(`https://api.github.com/repos/${env.GITHUB_REPO}`, { headers });
   if (!repo.ok) throw new Error(`github ${repo.status}: ${(await repo.text()).slice(0, 300)}`);

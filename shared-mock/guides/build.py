@@ -13,7 +13,7 @@ Assets under guides/assets are copied to <out>/.assets/guides.
 
 The output is a FORMAT 4 library: folders on disk, each document a file named
 after its title (store::file_name_for), links as paths relative to the file,
-and what the files cannot say in .quiet/index.json, keyed by path.
+and what the files cannot say in .ducko/index.json, keyed by path.
 """
 import datetime as dt, json, re, shutil, sys, time, uuid
 from pathlib import Path
@@ -117,7 +117,7 @@ covers = set()
 if out.exists() and any(out.iterdir()):
     sys.exit(f"{out} is not empty")
 out.mkdir(parents=True, exist_ok=True)
-(out / ".quiet").mkdir()
+(out / ".ducko").mkdir()
 index = {}
 order = list(KEYS.values())
 inside = {}
@@ -143,8 +143,8 @@ assert set(TOP) == {k for k, p, _ in KEYS.values() if not p} | set(FOLDERS), "TO
 key_of = {**{k: paths[k] for k in paths}, **{k: file_name(t) + "/" for k, t in FOLDERS.items()}}
 for i, k in enumerate(TOP):
     index[key_of[k]]["root_order"] = i + 1
-(out / ".quiet" / "index.json").write_text(json.dumps(dict(sorted(index.items())), ensure_ascii=False, indent=2) + "\n")
-(out / ".quiet" / "format.json").write_text('{\n  "format": 4\n}')
+(out / ".ducko" / "index.json").write_text(json.dumps(dict(sorted(index.items())), ensure_ascii=False, indent=2) + "\n")
+(out / ".ducko" / "format.json").write_text('{\n  "format": 4\n}')
 shutil.copytree(here / "assets", out / ".assets" / "guides")
 (out / ".assets" / "guides" / "covers").mkdir()
 for name in sorted(covers):

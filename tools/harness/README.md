@@ -1,23 +1,23 @@
 # 脚本驱动（harness）
 
-用 `FDL_SCRIPT` 回放一份逐行脚本来操作窗口，并截图。整个过程不碰用户的文档库：每次运行都先把 `lib_dir` 复制一份到 `work_dir/lib`，再用 `QUIET_MD_HOME` 指向这份副本。
+用 `FDL_SCRIPT` 回放一份逐行脚本来操作窗口，并截图。整个过程不碰用户的文档库：每次运行都先把 `lib_dir` 复制一份到 `work_dir/lib`，再用 `DUCKO_HOME` 指向这份副本。
 
 ```sh
 cargo build --release --features devtools   # 正式构建不带脚本驱动
 python3 tools/harness/run.py tools/harness/examples/scroll.txt            # 默认用 lib_clean，结果在 /tmp/fdl-run
 python3 tools/harness/run.py my.txt /path/to/lib /tmp/my-run              # 自定义文档库和输出目录
-FDL_BIN=/other/quiet_md python3 tools/harness/run.py my.txt
+FDL_BIN=/other/ducko python3 tools/harness/run.py my.txt
 ```
 
 - 截图：`<work_dir>/<name>.png`。`shot` 是离屏渲染，没有系统玻璃和桌面，透明的侧栏铺在窗口底色（和全屏时一样）上；要拍到真实的玻璃用 `deskshot`。和改动前（侧栏为黑色）的二进制做 `compare.py` 时，侧栏区域会有差异。
 - 日志：`<work_dir>/log`。性能数字用 `grep -a bench log` 查看。
 - `lib_clean/` 是一个审查用的文档库，含一篇「全部 Block 样式审查」和几张示例图片。
-- `winid.swift` 列出屏幕上 quiet_md 窗口的 window id（`swift winid.swift`），用来配合系统截图。
+- `winid.swift` 列出屏幕上 ducko 窗口的 window id（`swift winid.swift`），用来配合系统截图。
 
 ## 截图回归
 
 ```sh
-python3 tools/harness/compare.py tools/harness/examples/menus.txt <旧版二进制> target/release/quiet_md
+python3 tools/harness/compare.py tools/harness/examples/menus.txt <旧版二进制> target/release/ducko
 ```
 
 - 用同一份脚本分别跑两个版本，逐张逐像素比较截图。有差异时输出差异像素数和范围，并把差异图写到 `/tmp/fdl-compare/diff-<名字>.png`。

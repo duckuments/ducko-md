@@ -1,11 +1,11 @@
 # Architecture
 
-Quiet.md is a single-process GPUI application (Rust, about 40k lines). A document is a tree of blocks in memory (`model.rs`), and a DocxXML file on disk (`docxml.rs`). The editor paints this tree as a virtualized list.
+ducko is a single-process GPUI application (Rust, about 40k lines). A document is a tree of blocks in memory (`model.rs`), and a DocxXML file on disk (`docxml.rs`). The editor paints this tree as a virtualized list.
 
 The repo is a Cargo workspace split into two crates:
 
-- **`crates/core` (`fdl_core`, about 10k lines)**: the document engine. Includes the model, DocxXML, the editing kernel and undo, the on-disk library, Markdown / HTML import, and Markdown export. It doesn't depend on GPUI and can be compiled and tested on its own (`cargo test -p fdl_core`); the fuzzer also lives here.
-- **The root crate (`quiet_md`)**: the GPUI application — windows, views, rendering, menus, and overlays. `main.rs` re-exports `fdl_core`'s modules at the crate root, and `editor/mod.rs` re-exports `editor::core` and `editor::table_ops`, so the app can still write `crate::model`, `super::core`.
+- **`crates/core` (`ducko_core`, about 10k lines)**: the document engine. Includes the model, DocxXML, the editing kernel and undo, the on-disk library, Markdown / HTML import, and Markdown export. It doesn't depend on GPUI and can be compiled and tested on its own (`cargo test -p ducko_core`); the fuzzer also lives here.
+- **The root crate (`ducko`)**: the GPUI application — windows, views, rendering, menus, and overlays. `main.rs` re-exports `ducko_core`'s modules at the crate root, and `editor/mod.rs` re-exports `editor::core` and `editor::table_ops`, so the app can still write `crate::model`, `super::core`.
 
 Dependencies only flow from the app into core. Modules in core only reference other modules in core.
 
@@ -13,7 +13,7 @@ Dependencies only flow from the app into core. Modules in core only reference ot
 main.rs ─ window
   ├─ onboarding.rs  first-launch onboarding page; once a library is chosen, the same window switches to Workspace
   └─ app.rs  Workspace (the window's root view)
-       ├─ store.rs        the library: real folders + .quiet/index.json (see FORMAT.md)           [core]
+       ├─ store.rs        the library: real folders + .ducko/index.json (see FORMAT.md)           [core]
        ├─ sidebar / home / search / trash / tree / docmenu / docinfo / modes
        └─ editor::Editor (view.rs)   the currently open document
             └─ editor::Core (core.rs) document + selection + undo stack                        [core]
@@ -25,7 +25,7 @@ main.rs ─ window
 |---|---|---|---|
 | Model | `model.rs` | `Document` / `Block` / `BlockKind` / `RichText` (text + style runs) / inline objects `Inline { kind, xml }` | Pure data. `BlockKind::nests()` decides which blocks can have children |
 | Format | `docxml.rs` | DocxXML ⇄ `Document` | Unknown elements are preserved as-is as `Raw`; inline objects keep their original text, with the type parsed once on read; the output format is stable, see FORMAT.md |
-| Editing kernel | `editor/core.rs`, `editor/table_ops.rs` | All operations that modify a document: typing, deletion, merging, indenting, conversion, dragging, tables, folding, inline objects, undo | Lives in `fdl_core`, doesn't touch GPUI, can be unit-tested and fuzzed directly |
+| Editing kernel | `editor/core.rs`, `editor/table_ops.rs` | All operations that modify a document: typing, deletion, merging, indenting, conversion, dragging, tables, folding, inline objects, undo | Lives in `ducko_core`, doesn't touch GPUI, can be unit-tested and fuzzed directly |
 | Editing view | `editor/view.rs` + the rest of `editor/*` | Keyboard/mouse events → Core calls; overlays, menus, and per-block interaction | Document changes only go through Core (see below) |
 | Rendering | `editor/render.rs`, `editor/text.rs` | block → GPUI elements; `text.rs` is a self-drawn rich text element | Read-only on the document |
 | App | `app.rs` and other top-level modules | Sidebar, home, search, trash, document tree, import/export, printing | Reads/writes disk through `Store` |
@@ -40,7 +40,7 @@ The sequence for a single edit is fixed:
    - Cursor-targeted operations like typing and navigation call `Editor::changed()`, which first calls `core.reveal_caret()` to expand any collapsed heading or list item hiding the selection, and requests a scroll to the cursor;
    - Operations with an independent target, like clicking a task checkbox or resizing a column, call `changed_preserving_viewport()`, which preserves the cursor/selection and viewport. If folding moved the cursor into a heading, `changed()` is still used to show the migrated cursor;
    - Both paths fire `EditorEvent::Changed` when there's a change, which also refreshes search results, the slash menu, and the @ panel.
-4. On receiving `Changed`, `Workspace` calls `schedule_save`, which flushes to disk after 500ms via `flush()`. If the write fails, the change stays unsaved, the top bar shows an error, and switching documents, creating a new one, or quitting will prompt first. The save-failure dialog supports retrying, reloading disk content, or saving a recovery copy; reloading also resets the editor and the state of other windows on the same document. Quitting checks all windows, resolves a single conflict and rechecks; if conflicts remain, it won't quit. If saving still fails during system shutdown, the content is stashed in the local app data directory at `quiet-md/recovery/<library-id>/`, and restored as a new document (without overwriting the original on disk) the next time the same library is opened.
+4. On receiving `Changed`, `Workspace` calls `schedule_save`, which flushes to disk after 500ms via `flush()`. If the write fails, the change stays unsaved, the top bar shows an error, and switching documents, creating a new one, or quitting will prompt first. The save-failure dialog supports retrying, reloading disk content, or saving a recovery copy; reloading also resets the editor and the state of other windows on the same document. Quitting checks all windows, resolves a single conflict and rechecks; if conflicts remain, it won't quit. If saving still fails during system shutdown, the content is stashed in the local app data directory at `ducko/recovery/<library-id>/`, and restored as a new document (without overwriting the original on disk) the next time the same library is opened.
 
 After a successful write, `Store::save_now` also stores a version snapshot of the old in-memory content under `history/<id>/`: throttled to 5 minutes, 1–30 per document, with a 200 MiB cap for the whole library. A snapshot write failure is only logged as a warning and doesn't affect saving the document. Restoring a version first forces a snapshot of the current content, then proceeds through the normal `save` path.
 
@@ -119,7 +119,7 @@ Application top level (`src/`):
 
 | Module | Contents |
 |---|---|
-| `main.rs` | Entry point; `FDL_SCRIPT` script mode (`devtools` feature only); re-exports `fdl_core`'s modules |
+| `main.rs` | Entry point; `FDL_SCRIPT` script mode (`devtools` feature only); re-exports `ducko_core`'s modules |
 | `guides.rs` | Seeds the built-in "Getting Started" guide when the library is empty (only once) |
 | `app.rs` | `Workspace`: two-pane window, open / new / save / delete, save state, reminder scheduling |
 | `html.rs` / `printing.rs` / `transfer.rs` | HTML / PDF export, printing, import/export UI |
