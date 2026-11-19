@@ -30,8 +30,21 @@ fn hue_of(s: &str) -> &'static str {
     hues[(hash_str(s) as usize) % hues.len()]
 }
 
+/// A saturated chip: the hue's own swatch behind white text (not the pale
+/// `light-{hue}` tint used for text highlights elsewhere).
 fn chip_colors(hue: &str) -> (Hsla, Hsla) {
-    (theme::bg_color(&format!("light-{hue}")).unwrap_or(Theme::fill_hover()), theme::text_color(hue).unwrap_or(Theme::text()))
+    (theme::bg_color(hue).unwrap_or(Theme::fill_hover()), gpui::white())
+}
+
+/// `"2026-11-19"` → `(2026, 11, 19)`; permissive about leading zeros, strict
+/// about the shape (anything else, e.g. a hand-written front-matter date
+/// ducko doesn't recognise, just won't preselect a day).
+fn parse_ymd(s: &str) -> Option<(i64, u32, u32)> {
+    let mut it = s.trim().split('-');
+    let y = it.next()?.parse().ok()?;
+    let m = it.next()?.parse().ok()?;
+    let d = it.next()?.parse().ok()?;
+    it.next().is_none().then_some((y, m, d))
 }
 
 impl Editor {
@@ -52,9 +65,8 @@ impl Editor {
         cx.notify();
     }
 
-    fn set_date(&mut self, date: &str, cx: &mut Context<Self>) {
-        let date = date.trim().to_string();
-        self.set_meta(|m| m.date = (!date.is_empty()).then_some(date), cx);
+    fn set_date(&mut self, y: i64, m: u32, d: u32, cx: &mut Context<Self>) {
+        self.set_meta(|meta| meta.date = Some(format!("{y:04}-{m:02}-{d:02}")), cx);
     }
 
     fn commit_status(&mut self, status: Option<String>, window: &mut Window, cx: &mut Context<Self>) {
@@ -74,29 +86,113 @@ impl Editor {
         self.set_meta(|m| m.tags.retain(|t| t != tag), cx);
     }
 
-    /// Every note's tags just opened this document; a vault edited while it
-    /// stays open won't refresh the list until it's reopened.
-    pub fn sync_date_placeholder(&mut self, cx: &mut Context<Self>) {
-        let (y, mo, d, _, _) = crate::time::civil(self.created);
-        let hint = format!("{y:04}-{mo:02}-{d:02}");
-        self.date_field.update(cx, |f, cx| f.set_placeholder(hint, cx));
+    // ---- date popover: a calendar, no typing
+
+    /// The note's date, or (for display only, nothing written) the day it
+    /// was created — "the default date for new notes is the date of create".
+    fn display_date(&self) -> (Option<(i64, u32, u32)>, (i64, u32, u32)) {
+        let set = self.core.doc.meta.date.as_deref().and_then(parse_ymd);
+        let (cy, cm, cd, ..) = crate::time::civil(self.created);
+        (set, (cy, cm, cd))
     }
 
-    // ---- date field (no popover: a plain inline text field)
-
-    pub(super) fn on_date_field(&mut self, ev: &TextFieldEvent, window: &mut Window, cx: &mut Context<Self>) {
-        match ev {
-            TextFieldEvent::Submit | TextFieldEvent::Cancel => {
-                if *ev == TextFieldEvent::Submit {
-                    let v = self.date_field.read(cx).text.clone();
-                    self.set_date(&v, cx);
-                }
-                let v = self.core.doc.meta.date.clone().unwrap_or_default();
-                self.date_field.update(cx, |f, cx| f.set_text(&v, cx));
-                window.focus(&self.focus);
-            }
-            _ => {}
+    pub(super) fn open_date_menu(&mut self, pos: Point<Pixels>, window: &mut Window, cx: &mut Context<Self>) {
+        if matches!(self.menu, Some(Menu::Date { .. })) {
+            return self.close_menu_focus(window, cx);
         }
+        let (set, created) = self.display_date();
+        let (y, m, _) = set.unwrap_or(created);
+        self.menu = Some(Menu::Date { pos: self.rel(pos), view: (y, m) });
+        window.focus(&self.focus);
+        cx.notify();
+    }
+
+    pub(super) fn date_menu(&self, pos: Point<Pixels>, view: (i64, u32), _window: &Window, cx: &mut Context<Self>) -> Option<AnyElement> {
+        let (vy, vm) = view;
+        let (set, created) = self.display_date();
+        let (ty, tm, td, ..) = crate::time::civil(crate::time::now());
+        let first = crate::time::days_from_civil(vy, vm, 1);
+        let start = first - i64::from(crate::time::weekday(vy, vm, 1));
+        let nav = |key: &'static str, name: &'static str, delta: i32| {
+            div()
+                .id(key)
+                .size(px(24.))
+                .flex()
+                .items_center()
+                .justify_center()
+                .rounded(px(ROW_RADIUS))
+                .cursor_pointer()
+                .hover(|s| s.bg(Theme::fill_hover_strong()))
+                .child(icon(name, 16., Theme::icon()))
+                .on_mouse_down(
+                    MouseButton::Left,
+                    cx.listener(move |e, _, _, cx| {
+                        let k = vy * 12 + i64::from(vm) - 1 + i64::from(delta);
+                        e.menu = Some(Menu::Date { pos, view: (k.div_euclid(12), k.rem_euclid(12) as u32 + 1) });
+                        cx.notify();
+                    }),
+                )
+        };
+        let header = div()
+            .pt(px(12.))
+            .pr(px(12.))
+            .pb(px(8.))
+            .pl(px(16.))
+            .flex()
+            .items_center()
+            .justify_between()
+            .child(div().text_size(px(13.)).line_height(px(22.)).font_weight(FontWeight::SEMIBOLD).child(crate::localized_format!("{vy}年 {vm}月", "{vy}-{vm:02}")))
+            .child(div().flex().gap(px(4.)).child(nav("meta-date-prev", "chevron-left", -1)).child(nav("meta-date-next", "chevron-right", 1)));
+        let mut weeks = div().mb(px(4.)).flex().justify_between();
+        for w in [crate::settings::text("一"), crate::settings::text("二"), crate::settings::text("三"), crate::settings::text("四"), crate::settings::text("五"), crate::settings::text("六"), crate::settings::text("日")] {
+            weeks = weeks.child(div().w(px(28.)).h(px(28.)).flex().items_center().justify_center().text_size(px(12.)).text_color(Theme::text_placeholder()).child(w));
+        }
+        let mut body = div().flex().flex_col().gap(px(2.)).child(weeks);
+        for r in 0..6 {
+            let mut row = div().flex().justify_between();
+            for c in 0..7 {
+                let day = start + r * 7 + c;
+                let (y, m, dd) = super::countdown::from_days(day);
+                let is_set = Some((y, m, dd)) == set;
+                let today = (y, m, dd) == (ty, tm, td);
+                let is_created = set.is_none() && (y, m, dd) == created;
+                let inside = (y, m) == (vy, vm);
+                row = row.child(
+                    div()
+                        .id(("meta-date-day", day as usize))
+                        .size(px(28.))
+                        .flex()
+                        .items_center()
+                        .justify_center()
+                        .rounded(px(8.))
+                        .text_size(px(13.))
+                        .cursor_pointer()
+                        .text_color(if is_set {
+                            gpui::white()
+                        } else if today || is_created {
+                            Theme::primary()
+                        } else if inside {
+                            Theme::text()
+                        } else {
+                            Theme::text_placeholder()
+                        })
+                        .when(is_set, |d| d.bg(Theme::primary()).font_weight(FontWeight::SEMIBOLD))
+                        .when((today || is_created) && !is_set, |d| d.font_weight(FontWeight::SEMIBOLD))
+                        .when(!is_set, |d| d.hover(|s| s.bg(Theme::fill_hover())))
+                        .child(dd.to_string())
+                        .on_mouse_down(
+                            MouseButton::Left,
+                            cx.listener(move |e, _, window, cx| {
+                                e.set_date(y, m, dd, cx);
+                                e.close_menu_focus(window, cx);
+                            }),
+                        ),
+                );
+            }
+            body = body.child(row);
+        }
+        let el = menu().id("date-menu").w(px(244.)).child(header).child(div().px(px(12.)).pb(px(12.)).child(body));
+        Some(at(pos, Corner::TopLeft, el))
     }
 
     // ---- status popover
@@ -175,14 +271,17 @@ impl Editor {
         Some(at(pos, Corner::TopLeft, panel))
     }
 
-    // ---- tags popover: search existing tags or create a new one
+    // ---- tags: an inline search-or-create field in the bar itself, with
+    // its matches in a dropdown below (not a boxed popover around both).
 
     pub(super) fn open_tags_menu(&mut self, pos: Point<Pixels>, window: &mut Window, cx: &mut Context<Self>) {
         if matches!(self.menu, Some(Menu::Tags { .. })) {
             return self.close_menu_focus(window, cx);
         }
         self.tag_field.update(cx, |f, cx| f.set_text("", cx));
-        self.menu = Some(Menu::Tags { pos: self.rel(pos), selected: 0 });
+        // Nudged below the chip row, since the input itself now lives there
+        // too (`tag_input_el`) — only the suggestions dropdown anchors here.
+        self.menu = Some(Menu::Tags { pos: self.rel(pos + point(px(0.), px(CHIP_H + 6.))), selected: 0 });
         let fh = self.tag_field.read(cx).focus_handle(cx);
         window.focus(&fh);
         cx.notify();
@@ -203,6 +302,17 @@ impl Editor {
         (filtered, !q.is_empty() && !exact)
     }
 
+    fn pick_tag_candidate(&mut self, tag: &str, window: &mut Window, cx: &mut Context<Self>) {
+        self.add_tag(tag, cx);
+        self.tag_field.update(cx, |f, cx| f.set_text("", cx));
+        if let Some(Menu::Tags { pos, .. }) = self.menu {
+            self.menu = Some(Menu::Tags { pos, selected: 0 });
+        }
+        let fh = self.tag_field.read(cx).focus_handle(cx);
+        window.focus(&fh);
+        cx.notify();
+    }
+
     pub(super) fn on_tag_field(&mut self, ev: &TextFieldEvent, window: &mut Window, cx: &mut Context<Self>) {
         let Some(Menu::Tags { pos, selected }) = self.menu else { return };
         let (filtered, create) = self.tag_candidates(cx);
@@ -215,9 +325,7 @@ impl Editor {
             TextFieldEvent::Submit => {
                 let tag = if selected < filtered.len() { filtered.get(selected).cloned() } else if create { Some(self.tag_field.read(cx).text.clone()) } else { None };
                 if let Some(tag) = tag {
-                    self.add_tag(&tag, cx);
-                    self.tag_field.update(cx, |f, cx| f.set_text("", cx));
-                    self.menu = Some(Menu::Tags { pos, selected: 0 });
+                    self.pick_tag_candidate(&tag, window, cx);
                 }
                 return;
             }
@@ -227,7 +335,9 @@ impl Editor {
         cx.notify();
     }
 
-    pub(super) fn tags_menu(&self, pos: Point<Pixels>, selected: usize, window: &Window, cx: &mut Context<Self>) -> Option<AnyElement> {
+    /// Just the suggestions dropdown — the search field itself now lives
+    /// inline in the bar (`tag_input_el`), not boxed together with this.
+    pub(super) fn tags_menu(&self, pos: Point<Pixels>, selected: usize, _window: &Window, cx: &mut Context<Self>) -> Option<AnyElement> {
         let (filtered, create) = self.tag_candidates(cx);
         let query = self.tag_field.read(cx).text.trim().to_string();
         let mut list = div().id("tags-list").max_h(px(208.)).overflow_y_scroll().flex().flex_col();
@@ -241,14 +351,7 @@ impl Editor {
                         MouseButton::Left,
                         cx.listener(move |e, _, window, cx| {
                             cx.stop_propagation();
-                            e.add_tag(&t, cx);
-                            e.tag_field.update(cx, |f, cx| f.set_text("", cx));
-                            if let Some(Menu::Tags { pos, .. }) = e.menu {
-                                e.menu = Some(Menu::Tags { pos, selected: 0 });
-                            }
-                            let fh = e.tag_field.read(cx).focus_handle(cx);
-                            window.focus(&fh);
-                            cx.notify();
+                            e.pick_tag_candidate(&t, window, cx);
                         }),
                     ),
             );
@@ -265,14 +368,7 @@ impl Editor {
                         MouseButton::Left,
                         cx.listener(move |e, _, window, cx| {
                             cx.stop_propagation();
-                            e.add_tag(&t, cx);
-                            e.tag_field.update(cx, |f, cx| f.set_text("", cx));
-                            if let Some(Menu::Tags { pos, .. }) = e.menu {
-                                e.menu = Some(Menu::Tags { pos, selected: 0 });
-                            }
-                            let fh = e.tag_field.read(cx).focus_handle(cx);
-                            window.focus(&fh);
-                            cx.notify();
+                            e.pick_tag_candidate(&t, window, cx);
                         }),
                     ),
             );
@@ -280,29 +376,7 @@ impl Editor {
         if filtered.is_empty() && !create {
             list = list.child(div().h(px(MENU_ROW_H)).px(px(MENU_INSET + 8.)).flex().items_center().text_size(px(13.)).text_color(Theme::text_caption()).child(crate::settings::text("无匹配结果")));
         }
-        let focused = self.tag_field.read(cx).is_focused(window);
-        let el = menu()
-            .id("tags-menu")
-            .occlude()
-            .w(px(220.))
-            .py(px(MENU_PAD_Y))
-            .on_mouse_down(MouseButton::Left, |_, _, cx| cx.stop_propagation())
-            .child(
-                div()
-                    .mx(px(MENU_INSET))
-                    .mb(px(6.))
-                    .h(px(32.))
-                    .px(px(8.))
-                    .flex()
-                    .items_center()
-                    .gap(px(6.))
-                    .rounded(px(6.))
-                    .border_1()
-                    .border_color(if focused { Theme::primary() } else { Theme::line_border() })
-                    .child(icon("search", 14., Theme::icon()))
-                    .child(self.tag_field.clone()),
-            )
-            .child(list);
+        let el = menu().id("tags-menu").occlude().w(px(180.)).py(px(MENU_PAD_Y)).on_mouse_down(MouseButton::Left, |_, _, cx| cx.stop_propagation()).child(list);
         Some(at(pos, Corner::TopLeft, el))
     }
 
@@ -314,7 +388,7 @@ impl Editor {
         self.markdown
     }
 
-    pub(super) fn meta_bar_el(&self, cx: &mut Context<Self>) -> AnyElement {
+    pub(super) fn meta_bar_el(&self, window: &Window, cx: &mut Context<Self>) -> AnyElement {
         let tags = self.core.doc.meta.tags.clone();
         let status = self.core.doc.meta.status.clone();
         let mut bar = div()
@@ -322,28 +396,49 @@ impl Editor {
             .items_center()
             .flex_wrap()
             .gap(px(6.))
-            .mt(px(2.))
+            .mt(px(14.))
             .mb(px(8.))
             .text_size(px(12.))
             .line_height(px(18.))
             .on_mouse_down(MouseButton::Left, |_, _, cx| cx.stop_propagation())
-            .child(self.date_chip_el())
+            .child(self.date_chip_el(cx))
             .child(self.status_chip_el(status, cx));
         for t in tags {
             bar = bar.child(self.tag_chip_el(t, cx));
         }
-        bar.child(self.add_tag_button_el(cx)).into_any_element()
+        if matches!(self.menu, Some(Menu::Tags { .. })) {
+            bar.child(self.tag_input_el(window, cx)).into_any_element()
+        } else {
+            bar.child(self.add_tag_button_el(cx)).into_any_element()
+        }
     }
 
-    fn date_chip_el(&self) -> impl IntoElement {
+    fn date_chip_el(&self, cx: &mut Context<Self>) -> impl IntoElement {
+        let open = matches!(self.menu, Some(Menu::Date { .. }));
+        let (set, created) = self.display_date();
+        let (y, m, d) = set.unwrap_or(created);
         div()
+            .id("meta-date")
             .flex_none()
+            .h(px(CHIP_H))
+            .px(px(8.))
             .flex()
             .items_center()
             .gap(px(4.))
-            .text_color(Theme::text_caption())
+            .rounded(px(CHIP_H / 2.))
+            .when(open, |d| d.bg(Theme::fill_pressed()))
+            .text_color(if set.is_some() { Theme::text() } else { Theme::text_caption() })
             .child(icon("calendar", 13., Theme::icon()))
-            .child(div().w(px(84.)).child(self.date_field.clone()))
+            .child(format!("{y:04}-{m:02}-{d:02}"))
+            .when(!self.read_only, |el| {
+                el.cursor_pointer().hover(|s| s.bg(Theme::fill_hover())).on_mouse_down(
+                    MouseButton::Left,
+                    cx.listener(|e, ev: &MouseDownEvent, window, cx| {
+                        cx.stop_propagation();
+                        e.open_date_menu(ev.position, window, cx);
+                    }),
+                )
+            })
     }
 
     fn status_chip_el(&self, status: Option<String>, cx: &mut Context<Self>) -> impl IntoElement {
@@ -404,7 +499,7 @@ impl Editor {
                         .justify_center()
                         .rounded(px(7.))
                         .cursor_pointer()
-                        .hover(|s| s.bg(theme::ta(0, 0, 0, 0.08)))
+                        .hover(|s| s.bg(theme::ta(255, 255, 255, 0.25)))
                         .child(icon("x", 10., color))
                         .on_mouse_down(
                             MouseButton::Left,
@@ -418,7 +513,6 @@ impl Editor {
     }
 
     fn add_tag_button_el(&self, cx: &mut Context<Self>) -> impl IntoElement {
-        let open = matches!(self.menu, Some(Menu::Tags { .. }));
         div()
             .id("meta-add-tag")
             .flex_none()
@@ -428,7 +522,6 @@ impl Editor {
             .justify_center()
             .rounded(px(CHIP_H / 2.))
             .text_color(Theme::icon())
-            .when(open, |d| d.bg(Theme::fill_pressed()))
             .hover(|s| s.bg(Theme::fill_hover()))
             .child(icon("plus", 12., Theme::icon()))
             .tip(crate::settings::text("添加标签"), None)
@@ -441,5 +534,24 @@ impl Editor {
                     }),
                 )
             })
+    }
+
+    /// The tag search-or-create field, inline in the bar right after the
+    /// chips (not inside the suggestions dropdown — see `tags_menu`).
+    fn tag_input_el(&self, window: &Window, cx: &mut Context<Self>) -> impl IntoElement {
+        let focused = self.tag_field.read(cx).is_focused(window);
+        div()
+            .id("meta-tag-input")
+            .flex_none()
+            .h(px(CHIP_H))
+            .w(px(120.))
+            .px(px(8.))
+            .flex()
+            .items_center()
+            .rounded(px(CHIP_H / 2.))
+            .border_1()
+            .border_color(if focused { Theme::primary() } else { Theme::line_border() })
+            .child(self.tag_field.clone())
+            .on_mouse_down(MouseButton::Left, |_, _, cx| cx.stop_propagation())
     }
 }

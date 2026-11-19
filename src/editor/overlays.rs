@@ -323,6 +323,7 @@ impl Editor {
             Some(Menu::Reminder { block, offset }) => self.reminder_popover(block, offset, window, cx),
             Some(Menu::Status { pos }) => self.status_menu(pos, window, cx),
             Some(Menu::Tags { pos, selected }) => self.tags_menu(pos, selected, window, cx),
+            Some(Menu::Date { pos, view }) => self.date_menu(pos, view, window, cx),
             _ => None,
         };
         out.extend(menu_el);

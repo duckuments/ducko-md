@@ -695,7 +695,6 @@ impl Workspace {
                 e.created = m.created;
                 e.info = m.info;
                 e.set_read_only(m.reading, cx);
-                e.sync_date_placeholder(cx);
             }
             e
         });

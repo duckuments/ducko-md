@@ -148,6 +148,12 @@ pub enum Menu {
         pos: Point<Pixels>,
         selected: usize,
     },
+    /// The metadata bar's date chip: a calendar, `view` is the (year, month)
+    /// it's showing (independent of the picked date, for paging).
+    Date {
+        pos: Point<Pixels>,
+        view: (i64, u32),
+    },
 }
 
 pub type BoundsMap = Rc<RefCell<HashMap<BlockId, Bounds<Pixels>>>>;
@@ -273,8 +279,6 @@ pub struct Editor {
     pub emoji_scroll: ScrollHandle,
     /// The emoji search box was clicked or typed into (draws its focus ring).
     pub emoji_search_active: bool,
-    /// The metadata bar's `date` text field.
-    pub date_field: Entity<TextField>,
     /// The metadata bar's custom-status text field (inside `Menu::Status`).
     pub status_field: Entity<TextField>,
     /// The metadata bar's tag search-or-create field (inside `Menu::Tags`).
@@ -499,13 +503,6 @@ impl Editor {
             f.line_height = 24.;
             f
         });
-        let date_field = cx.new(|cx| {
-            let mut f = TextField::new("", cx);
-            f.set_text(doc.meta.date.as_deref().unwrap_or_default(), cx);
-            f.size = 12.;
-            f.line_height = 18.;
-            f
-        });
         let status_field = cx.new(|cx| {
             let mut f = TextField::new(crate::settings::text("自定义状态"), cx);
             f.size = 13.;
@@ -600,11 +597,6 @@ impl Editor {
                 &emoji_field,
                 window,
                 |this, _, ev: &TextFieldEvent, window, cx| this.on_emoji_field(ev, window, cx),
-            ),
-            cx.subscribe_in(
-                &date_field,
-                window,
-                |this, _, ev: &TextFieldEvent, window, cx| this.on_date_field(ev, window, cx),
             ),
             cx.subscribe_in(
                 &status_field,
@@ -724,7 +716,6 @@ impl Editor {
             emoji_field,
             emoji_scroll: ScrollHandle::new(),
             emoji_search_active: false,
-            date_field,
             status_field,
             tag_field,
             tag_options: vec![],
