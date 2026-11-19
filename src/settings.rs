@@ -39,8 +39,6 @@ impl Lang {
 pub fn lang() -> Lang { Lang::ALL.get(LANG.load(Ordering::Relaxed) as usize).copied().unwrap_or(Lang::En) }
 /// Not Chinese: English, or a language that shows English where it has no string yet.
 pub fn english() -> bool { lang() != Lang::Zh }
-/// 外观 › 动画 is 丰富: folding, the selection and hover animate too (else they answer at once).
-pub fn motion_high() -> bool { MOTION_HIGH.load(Ordering::Relaxed) }
 /// Vim mode: modal editing (Normal/Insert/Visual) and a block caret in Normal.
 pub fn vim() -> bool { VIM.load(Ordering::Relaxed) }
 pub fn tr(zh: &'static str, en: &'static str) -> &'static str { match lang() { Lang::Zh => zh, Lang::En => en, l => crate::l10n::get(l, zh).unwrap_or(en) } }

@@ -23,7 +23,8 @@ const SAVE_DELAY: Duration = Duration::from_millis(500);
 const SAVE_MAX_DELAY: Duration = Duration::from_secs(2);
 
 actions!(workspace, [NewDoc, OpenFile, ImportDoc, ImportFolder, ToggleSidebar, FocusSearch, FindInDoc, ReplaceInDoc, OpenSettings, OpenAbout, CheckForUpdates, GoHome, CloseWindow, Quit,
-    ReplayOnboarding, HideApp, HideOthers, ShowAll, Minimize, Zoom, ToggleFullScreen]);
+    ReplayOnboarding, HideApp, HideOthers, ShowAll, Minimize, Zoom, ToggleFullScreen,
+    FocusFolderNav, FocusNoteNav, FocusEditorPane, NavUp, NavDown, NavLeft, NavRight, NavActivate]);
 
 /// The menu bar, in the interface language.
 pub fn set_menus(cx: &mut App) {
@@ -108,6 +109,17 @@ pub fn bind_keys(cx: &mut App) {
         KeyBinding::new("cmd-f", FindInDoc, None),
         KeyBinding::new("cmd-shift-h", ReplaceInDoc, None),
         KeyBinding::new("cmd-q", Quit, None),
+        // Jump between the folder nav, the note nav and the editor.
+        KeyBinding::new("cmd-1", FocusFolderNav, None),
+        KeyBinding::new("cmd-2", FocusNoteNav, None),
+        KeyBinding::new("cmd-3", FocusEditorPane, None),
+        // Move the highlight within whichever nav column is focused; shadowed
+        // by the editor's own bindings for these keys whenever it has focus.
+        KeyBinding::new("up", NavUp, Some("Workspace")),
+        KeyBinding::new("down", NavDown, Some("Workspace")),
+        KeyBinding::new("left", NavLeft, Some("Workspace")),
+        KeyBinding::new("right", NavRight, Some("Workspace")),
+        KeyBinding::new("enter", NavActivate, Some("Workspace")),
     ]);
     // macOS app and window keys. ⌥⌘H (隐藏其他) stays with the editor's
     // 应用上次的颜色, the Feishu shortcut; 隐藏其他 is in the menu. On Windows
@@ -212,6 +224,13 @@ pub enum View {
     Settings,
 }
 
+/// Which nav column the arrow keys move a highlight in.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum NavFocus {
+    Folder,
+    Note,
+}
+
 /// A confirmation dialog and the pages it is about.
 #[derive(Clone, Debug)]
 pub enum Confirm {
@@ -239,7 +258,7 @@ pub enum Confirm {
 
 /// What a sidebar drop would import: files and folders from the Finder, or a 本机文件.
 #[derive(Clone, Debug)]
-pub enum DropImport { Files(Vec<std::path::PathBuf>), Local(String) }
+pub enum DropImport { Files(Vec<std::path::PathBuf>) }
 
 /// What to do once the open document is safely on disk (or its changes given up).
 pub type AfterSave = Box<dyn FnOnce(&mut Workspace, &mut Window, &mut Context<Workspace>)>;
@@ -290,9 +309,18 @@ pub struct Workspace {
     pub sidebar_width: f32,
     /// The resize handle is being dragged.
     pub sidebar_drag: bool,
+    /// The note nav's own dragged width (between the folder and note columns).
+    pub note_nav_width: f32,
+    pub note_nav_drag: bool,
     /// The window's minimum width as last given to it (`DOC_MIN_W` plus the sidebar).
     min_w: f32,
     pub folder_current: Option<String>,
+    /// Which nav column the arrow keys act on when nothing deeper (the
+    /// editor, a text field, a menu) claims them first.
+    pub nav_focus: NavFocus,
+    /// The note nav's keyboard-highlighted row (separate from the open
+    /// document, so arrowing around doesn't open anything until Enter).
+    pub note_highlight: Option<String>,
     pub create_menu: Option<(Option<String>, Point<Pixels>)>,
     /// The header's 导入 menu: the folder it imports into, and where it hangs.
     pub import_menu: Option<(Option<String>, Point<Pixels>)>,
@@ -510,6 +538,7 @@ impl Workspace {
         .detach();
         let settings = store.settings();
         let sidebar_width = settings.sidebar_width.unwrap_or(theme::SIDEBAR_WIDTH);
+        let note_nav_width = settings.note_nav_width.unwrap_or(crate::sidebar::NOTE_NAV_W);
         let history_limit = settings.history_limit();
         let mut ws = Workspace {
             quick_note: quick,
@@ -535,7 +564,11 @@ impl Workspace {
             sidebar_width,
             min_w: 0.,
             sidebar_drag: false,
+            note_nav_width,
+            note_nav_drag: false,
             folder_current: None,
+            nav_focus: NavFocus::Folder,
+            note_highlight: None,
             create_menu: None,
             import_menu: None,
             place_menu: None,
@@ -1535,10 +1568,12 @@ impl Render for Workspace {
         }
         let settings_mode = matches!(self.view, View::Settings | View::Trash);
         let folder_nav = self.sidebar_open.then(|| if settings_mode { self.render_settings_sidebar(window, cx) } else { self.render_folder_nav(window, cx) });
-        let note_nav = (self.sidebar_open && !settings_mode).then(|| self.render_note_nav(cx));
+        let note_nav = (self.sidebar_open && !settings_mode).then(|| self.render_note_nav(window, cx));
         let row_menu = self.render_row_menu(window, cx);
         let resize = self.sidebar_open.then(|| self.render_resize_handle(window, cx));
         let resize_overlay = self.render_resize_overlay(cx);
+        let note_resize = (self.sidebar_open && !settings_mode).then(|| self.render_note_resize_handle(window, cx));
+        let note_resize_overlay = self.render_note_resize_overlay(cx);
         let folder_drag_overlay = self.render_folder_drag_overlay(cx);
         let home_drag_overlay = self.render_home_drag_overlay(window, cx);
         let file_drop = self.render_file_drop(window, cx);
@@ -1722,10 +1757,21 @@ impl Render for Workspace {
                 if w.search_open { w.close_search(window, cx); } else { w.open_search(window, cx); }
                 cx.stop_propagation();
             }))
+            .on_action(cx.listener(|w, _: &FocusFolderNav, window, cx| w.focus_nav(NavFocus::Folder, window, cx)))
+            .on_action(cx.listener(|w, _: &FocusNoteNav, window, cx| w.focus_nav(NavFocus::Note, window, cx)))
+            .on_action(cx.listener(|w, _: &FocusEditorPane, window, cx| {
+                if let Some(ed) = &w.editor { ed.read(cx).focus(window); }
+            }))
+            .on_action(cx.listener(|w, _: &NavUp, _, cx| w.nav_move(-1, cx)))
+            .on_action(cx.listener(|w, _: &NavDown, _, cx| w.nav_move(1, cx)))
+            .on_action(cx.listener(|w, _: &NavLeft, _, cx| w.nav_switch(NavFocus::Folder, cx)))
+            .on_action(cx.listener(|w, _: &NavRight, _, cx| w.nav_switch(NavFocus::Note, cx)))
+            .on_action(cx.listener(|w, _: &NavActivate, window, cx| w.nav_activate(window, cx)))
             .children(folder_nav)
             .children(note_nav)
             .child(note)
             .children(resize)
+            .children(note_resize)
             .children(crate::ui::window_controls(window))
             .children(row_menu)
             .children(doc_menu)
@@ -1741,6 +1787,7 @@ impl Render for Workspace {
             .children(export_md)
             .children(search)
             .children(resize_overlay)
+            .children(note_resize_overlay)
             .children(folder_drag_overlay)
             .when(self.file_history.busy || self.store.file_task_busy(), |d| d.child(deferred(div().id("file-history-pending").absolute().inset_0().occlude()
                 .on_mouse_down(MouseButton::Left, |_, _, cx| cx.stop_propagation())
