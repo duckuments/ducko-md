@@ -48,6 +48,10 @@ pub(crate) const SECTION_TOP: f32 = 6.;
 /// a fixed width, unlike the folder nav which the user can drag.
 pub(crate) const NOTE_NAV_W: f32 = 240.;
 
+/// A pane without nav focus fades to this, so cmd-1/2/3 and the arrow keys
+/// read as "which one is bold", not a separate indicator line.
+pub(crate) const NAV_DIM: f32 = 0.55;
+
 /// 批量操作 caps at 50 pages.
 pub(crate) const BATCH_LIMIT: usize = 50;
 
@@ -131,11 +135,16 @@ impl Workspace {
         if matches!(self.view, View::Settings | View::Trash) { w } else { w + self.note_nav_w(window) }
     }
 
+    /// `pane`'s opacity for the cmd-1/2/3 focus cue: full when it has nav
+    /// focus, dimmed otherwise.
+    pub(crate) fn nav_opacity(&self, pane: NavFocus) -> f32 {
+        if self.nav_focus == pane { 1. } else { NAV_DIM }
+    }
+
     /// The left column: folders only, no docs. Picking one (or none, via 主页)
     /// drives what the note column beside it shows.
     pub(crate) fn render_folder_nav(&mut self, window: &mut Window, cx: &mut Context<Self>) -> AnyElement {
         let header = div()
-            .relative()
             .h(px(crate::app::HEADER_H))
             .flex_none()
             .flex()
@@ -143,7 +152,6 @@ impl Workspace {
             .pl(px(theme::TRAFFIC_LIGHTS_W))
             .pr(px(12.))
             .title_bar()
-            .when(self.nav_focus == NavFocus::Folder, |d| d.child(div().absolute().bottom_0().left_0().right_0().h(px(2.)).bg(Theme::primary())))
             .child(
                 div()
                     .id("collapse-sidebar")
@@ -211,6 +219,7 @@ impl Workspace {
             .h_full()
             .flex()
             .flex_col()
+            .opacity(self.nav_opacity(NavFocus::Folder))
             .child(header)
             .child(nav)
             .child(
@@ -255,14 +264,12 @@ impl Workspace {
             .unwrap_or_else(|| crate::settings::tr("我的文档", "My documents").to_string());
 
         let header = div()
-            .relative()
             .h(px(crate::app::HEADER_H))
             .flex_none()
             .flex()
             .items_center()
             .px(px(SB_X))
             .title_bar()
-            .when(self.nav_focus == NavFocus::Note, |d| d.child(div().absolute().bottom_0().left_0().right_0().h(px(2.)).bg(Theme::primary())))
             .child(
                 div()
                     .min_w_0()
@@ -317,6 +324,7 @@ impl Workspace {
             .flex()
             .flex_col()
             .bg(Theme::note_nav_bg())
+            .opacity(self.nav_opacity(NavFocus::Note))
             .child(header)
             .child(div().id("note-nav-list").flex_1().min_h_0().overflow_y_scroll().child(body))
             .into_any_element()
@@ -389,6 +397,8 @@ impl Workspace {
                 (ids, self.folder_current.clone())
             }
             NavFocus::Note => (self.visible_notes(), self.note_highlight.clone().or_else(|| self.current.clone())),
+            // The editor handles its own arrow keys; nothing to move here.
+            NavFocus::Editor => return,
         };
         if ids.is_empty() {
             return;
@@ -401,6 +411,7 @@ impl Workspace {
         match self.nav_focus {
             NavFocus::Folder => self.folder_current = Some(ids[next].clone()),
             NavFocus::Note => self.note_highlight = Some(ids[next].clone()),
+            NavFocus::Editor => {}
         }
         cx.notify();
     }
@@ -430,6 +441,7 @@ impl Workspace {
                     if folder { self.select_folder(&id); } else { self.open(&id, window, cx); }
                 }
             }
+            NavFocus::Editor => {}
         }
         cx.notify();
     }

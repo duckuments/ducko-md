@@ -229,6 +229,7 @@ pub enum View {
 pub enum NavFocus {
     Folder,
     Note,
+    Editor,
 }
 
 /// A confirmation dialog and the pages it is about.
@@ -770,6 +771,7 @@ impl Workspace {
         self.current = Some(id.to_string());
         // The note nav follows the open document, like the left column reveals its ancestors.
         self.folder_current = self.entries.iter().find(|e| e.id == id).and_then(|e| e.meta.parent.clone());
+        self.nav_focus = NavFocus::Editor;
         crate::quick_note::used(id, cx);
         self.reveal_in_tree(id);
         self.sync_sub_pages(cx);
@@ -1630,7 +1632,9 @@ impl Render for Workspace {
         // them (no gutter, radius, border or shadow).
         // A document sits on its theme's page colour.
         let page = if self.view == View::Doc { crate::editor_theme::Theme::bg_body() } else { Theme::bg_body() };
-        let note = div().id("note").relative().flex_1().min_w_0().h_full().flex().bg(page).child(main)
+        let note = div().id("note").relative().flex_1().min_w_0().h_full().flex().bg(page)
+            .when(self.sidebar_open && !settings_mode && self.nav_focus != NavFocus::Editor, |d| d.opacity(crate::sidebar::NAV_DIM))
+            .child(main)
             // Files from the Finder dropped on 主页 or a folder's page are imported there.
             .when(matches!(self.view, View::Home | View::Folder), |d| d
                 .on_drag_move(cx.listener(|w, ev: &DragMoveEvent<ExternalPaths>, _, cx| w.file_drag_move(ev, cx)))
@@ -1760,7 +1764,11 @@ impl Render for Workspace {
             .on_action(cx.listener(|w, _: &FocusFolderNav, window, cx| w.focus_nav(NavFocus::Folder, window, cx)))
             .on_action(cx.listener(|w, _: &FocusNoteNav, window, cx| w.focus_nav(NavFocus::Note, window, cx)))
             .on_action(cx.listener(|w, _: &FocusEditorPane, window, cx| {
-                if let Some(ed) = &w.editor { ed.read(cx).focus(window); }
+                if let Some(ed) = w.editor.clone() {
+                    w.nav_focus = NavFocus::Editor;
+                    ed.read(cx).focus(window);
+                    cx.notify();
+                }
             }))
             .on_action(cx.listener(|w, _: &NavUp, _, cx| w.nav_move(-1, cx)))
             .on_action(cx.listener(|w, _: &NavDown, _, cx| w.nav_move(1, cx)))
