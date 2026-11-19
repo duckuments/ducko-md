@@ -230,7 +230,7 @@ pub fn markdown_document(path: &Path) -> std::io::Result<Document> {
     if blocks.is_empty() {
         blocks.push(Block::text(""));
     }
-    Ok(Document { title: RichText::plain(stem), icon: None, cover: None, blocks })
+    Ok(Document { title: RichText::plain(stem), icon: None, cover: None, meta: Default::default(), blocks })
 }
 
 impl Workspace {

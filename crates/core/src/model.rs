@@ -941,7 +941,21 @@ pub struct Document {
     /// 文档图标: an emoji shown before the title (file-level, not undone).
     pub icon: Option<String>,
     pub cover: Option<Cover>,
+    /// A Markdown file's `date` / `tags` / `status` front-matter keys, kept
+    /// parsed (file-level, not undone, like `icon`); every other key the
+    /// front matter has stays on disk, untouched (`markdown::patch_front`).
+    pub meta: FrontMeta,
     pub blocks: Vec<Block>,
+}
+
+/// The front-matter fields ducko edits directly. `tags` empty or `date` /
+/// `status` `None` means the key is absent; writing it back (`patch_front`)
+/// then leaves it absent too, rather than emitting an empty value.
+#[derive(Clone, Debug, Default, PartialEq)]
+pub struct FrontMeta {
+    pub date: Option<String>,
+    pub tags: Vec<String>,
+    pub status: Option<String>,
 }
 
 /// 封面: a local image plus `offset_ratio_x/y` (0 = centred).
@@ -958,6 +972,7 @@ impl Default for Document {
             title: RichText::default(),
             icon: None,
             cover: None,
+            meta: FrontMeta::default(),
             blocks: vec![Block::text("")],
         }
     }

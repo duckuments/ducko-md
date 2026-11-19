@@ -695,6 +695,7 @@ impl Workspace {
                 e.created = m.created;
                 e.info = m.info;
                 e.set_read_only(m.reading, cx);
+                e.sync_date_placeholder(cx);
             }
             e
         });
@@ -775,6 +776,10 @@ impl Workspace {
         crate::quick_note::used(id, cx);
         self.reveal_in_tree(id);
         self.sync_sub_pages(cx);
+        if let Some(ed) = self.editor.clone() {
+            let tags = self.store.all_tags();
+            ed.update(cx, |e, cx| e.set_tag_options(tags, cx));
+        }
         self.status = SaveStatus::Idle;
         self.row_menu = None;
         self.doc_menu = false;

@@ -16,6 +16,7 @@ pub mod keymap;
 mod link;
 pub mod links;
 pub mod math;
+mod meta_bar;
 pub mod menus;
 mod overlays;
 mod numbering;

@@ -1522,6 +1522,8 @@ pub(crate) fn localize(text: &str, english: bool) -> &str {
         "填充颜色" => "Fill color",
         "按 ESC 完成输入" => "Press Esc to finish",
         "无匹配结果" => "No matches",
+        "添加标签" => "Add tag",
+        "自定义状态" => "Custom status",
         "粗体" => "Bold",
         "**文本** 空格" => "**text** Space",
         "~~文本~~ 空格" => "~~text~~ Space",

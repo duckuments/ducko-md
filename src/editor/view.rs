@@ -138,6 +138,16 @@ pub enum Menu {
         block: BlockId,
         offset: usize,
     },
+    /// The metadata bar's status chip: 3 presets plus a custom-text field.
+    Status {
+        pos: Point<Pixels>,
+    },
+    /// The metadata bar's "+" tag button: search-or-create, `selected` is
+    /// the highlighted row (existing tags, then a trailing "create" row).
+    Tags {
+        pos: Point<Pixels>,
+        selected: usize,
+    },
 }
 
 pub type BoundsMap = Rc<RefCell<HashMap<BlockId, Bounds<Pixels>>>>;
@@ -263,6 +273,15 @@ pub struct Editor {
     pub emoji_scroll: ScrollHandle,
     /// The emoji search box was clicked or typed into (draws its focus ring).
     pub emoji_search_active: bool,
+    /// The metadata bar's `date` text field.
+    pub date_field: Entity<TextField>,
+    /// The metadata bar's custom-status text field (inside `Menu::Status`).
+    pub status_field: Entity<TextField>,
+    /// The metadata bar's tag search-or-create field (inside `Menu::Tags`).
+    pub tag_field: Entity<TextField>,
+    /// Every tag used elsewhere in the library, for the tag field's
+    /// autocomplete (kept current by the workspace, like `sub_pages`).
+    pub tag_options: Vec<String>,
     pub(super) cover_ui: super::cover::CoverUi,
     pub find: Option<super::find::Find>,
     pub find_field: Entity<TextField>,
@@ -480,6 +499,19 @@ impl Editor {
             f.line_height = 24.;
             f
         });
+        let date_field = cx.new(|cx| {
+            let mut f = TextField::new("", cx);
+            f.set_text(doc.meta.date.as_deref().unwrap_or_default(), cx);
+            f.size = 12.;
+            f.line_height = 18.;
+            f
+        });
+        let status_field = cx.new(|cx| {
+            let mut f = TextField::new(crate::settings::text("自定义状态"), cx);
+            f.size = 13.;
+            f
+        });
+        let tag_field = cx.new(|cx| TextField::new("搜索", cx));
         let vim_cmd = cx.new(|cx| TextField::new("", cx));
         let find_field = cx.new(|cx| TextField::new("在文档内查找", cx));
         let replace_field = cx.new(|cx| TextField::new("请输入文字", cx));
@@ -568,6 +600,21 @@ impl Editor {
                 &emoji_field,
                 window,
                 |this, _, ev: &TextFieldEvent, window, cx| this.on_emoji_field(ev, window, cx),
+            ),
+            cx.subscribe_in(
+                &date_field,
+                window,
+                |this, _, ev: &TextFieldEvent, window, cx| this.on_date_field(ev, window, cx),
+            ),
+            cx.subscribe_in(
+                &status_field,
+                window,
+                |this, _, ev: &TextFieldEvent, window, cx| this.on_status_field(ev, window, cx),
+            ),
+            cx.subscribe_in(
+                &tag_field,
+                window,
+                |this, _, ev: &TextFieldEvent, window, cx| this.on_tag_field(ev, window, cx),
             ),
             cx.subscribe_in(
                 &lang_field,
@@ -677,6 +724,10 @@ impl Editor {
             emoji_field,
             emoji_scroll: ScrollHandle::new(),
             emoji_search_active: false,
+            date_field,
+            status_field,
+            tag_field,
+            tag_options: vec![],
             cover_ui: super::cover::CoverUi::new(),
             find: None,
             find_field,
@@ -844,6 +895,12 @@ impl Editor {
             self.sub_pages = pages;
             cx.notify();
         }
+    }
+
+    /// The vault's distinct tags, for the metadata bar's tag autocomplete.
+    pub fn set_tag_options(&mut self, tags: Vec<String>, cx: &mut Context<Self>) {
+        self.tag_options = tags;
+        cx.notify();
     }
 
     pub(crate) fn receive_file_title(&mut self, title: &str, cx: &mut Context<Self>) {

@@ -279,6 +279,148 @@ pub fn front_matter(text: &str) -> (&str, &str) {
     ("", text)
 }
 
+/// One front-matter key and the lines it owns (its own `key: …` line, plus
+/// any indented/list continuation lines after it). `key` is `None` for a
+/// stray line before the first recognized key (kept, never produced by us).
+struct FrontEntry {
+    key: Option<String>,
+    lines: Vec<String>,
+}
+
+/// `front` (as `front_matter` returns it) split into its opening fence line,
+/// the interior lines (between the fences), and the closing fence through
+/// whatever blank lines follow it. Mirrors `front_matter`'s own fence search,
+/// so it agrees with whatever that function already decided is the block.
+fn front_fences(front: &str) -> (&str, &str, &str) {
+    if front.is_empty() {
+        return ("", "", "");
+    }
+    let open_end = front.find('\n').map_or(front.len(), |i| i + 1);
+    let mut at = open_end;
+    for line in front[open_end..].split_inclusive('\n') {
+        at += line.len();
+        if line.trim_end() == "---" {
+            let close_start = at - line.len();
+            return (&front[..open_end], &front[open_end..close_start], &front[close_start..]);
+        }
+    }
+    (&front[..open_end], &front[open_end..], "")
+}
+
+fn front_entries(interior: &str) -> Vec<FrontEntry> {
+    let mut entries: Vec<FrontEntry> = vec![];
+    for line in interior.lines() {
+        let key = (!line.starts_with([' ', '\t'])).then(|| line.split_once(':')).flatten()
+            .map(|(k, _)| k.trim())
+            .filter(|k| !k.is_empty() && k.chars().all(|c| c.is_alphanumeric() || c == '_' || c == '-'));
+        if let Some(key) = key {
+            entries.push(FrontEntry { key: Some(key.to_string()), lines: vec![line.to_string()] });
+        } else if let Some(last) = entries.last_mut() {
+            last.lines.push(line.to_string());
+        } else {
+            entries.push(FrontEntry { key: None, lines: vec![line.to_string()] });
+        }
+    }
+    entries
+}
+
+fn yaml_unquote(s: &str) -> String {
+    let s = s.trim();
+    let b = s.as_bytes();
+    if b.len() >= 2 && ((b[0] == b'"' && b[b.len() - 1] == b'"') || (b[0] == b'\'' && b[b.len() - 1] == b'\'')) {
+        return s[1..s.len() - 1].to_string();
+    }
+    s.to_string()
+}
+
+/// A scalar needing quotes to stay valid/unambiguous YAML (a colon or `#`
+/// inside it, a leading character that starts another YAML construct, or
+/// surrounding whitespace) gets them; a plain word or ISO date does not.
+fn yaml_quote_if_needed(s: &str) -> String {
+    let needs = s.is_empty()
+        || s.contains(':')
+        || s.contains('#')
+        || s.trim() != s
+        || s.starts_with(['"', '\'', '[', '{', '&', '*', '!', '|', '>', '%', '@', '`', '-']);
+    if needs { format!("\"{}\"", s.replace('\\', "\\\\").replace('"', "\\\"")) } else { s.to_string() }
+}
+
+fn front_scalar(lines: &[String]) -> Option<String> {
+    let (_, v) = lines[0].split_once(':')?;
+    let v = v.trim();
+    (!v.is_empty()).then(|| yaml_unquote(v))
+}
+
+fn front_list(lines: &[String]) -> Vec<String> {
+    let inline = lines[0].split_once(':').map_or("", |(_, v)| v.trim());
+    if let Some(inner) = inline.strip_prefix('[').and_then(|s| s.strip_suffix(']')) {
+        return inner.split(',').map(str::trim).filter(|s| !s.is_empty()).map(yaml_unquote).collect();
+    }
+    let mut out: Vec<String> = (!inline.is_empty()).then(|| yaml_unquote(inline)).into_iter().collect();
+    out.extend(lines[1..].iter().filter_map(|l| l.trim_start().strip_prefix("- ").map(|v| yaml_unquote(v.trim()))));
+    out
+}
+
+fn tags_entry_lines(tags: &[String]) -> Vec<String> {
+    let mut out = vec!["tags:".to_string()];
+    out.extend(tags.iter().map(|t| format!("  - {}", yaml_quote_if_needed(t))));
+    out
+}
+
+/// The `date` / `tags` / `status` keys read out of a front-matter block (as
+/// `front_matter` returns it); every other key is ignored here but kept on
+/// disk by `patch_front`.
+pub fn parse_front_meta(front: &str) -> FrontMeta {
+    let (_, interior, _) = front_fences(front);
+    let mut meta = FrontMeta::default();
+    for e in front_entries(interior) {
+        match e.key.as_deref() {
+            Some("date") => meta.date = front_scalar(&e.lines),
+            Some("status") => meta.status = front_scalar(&e.lines),
+            Some("tags") => meta.tags = front_list(&e.lines),
+            _ => {}
+        }
+    }
+    meta
+}
+
+/// `front` with only `date`, `tags` and `status` rewritten to match `meta`;
+/// every other key is left exactly where and as it was. A key `meta` leaves
+/// empty/`None` is removed (or simply absent); one that's set but wasn't
+/// there is appended before the closing fence. With no front matter at all,
+/// a fresh block is created only if `meta` actually has something to show —
+/// an untouched note never grows one.
+pub fn patch_front(front: &str, meta: &FrontMeta) -> String {
+    let wants: [(&str, Option<Vec<String>>); 3] = [
+        ("date", meta.date.as_deref().filter(|s| !s.trim().is_empty()).map(|v| vec![format!("date: {}", yaml_quote_if_needed(v))])),
+        ("status", meta.status.as_deref().filter(|s| !s.trim().is_empty()).map(|v| vec![format!("status: {}", yaml_quote_if_needed(v))])),
+        ("tags", (!meta.tags.is_empty()).then(|| tags_entry_lines(&meta.tags))),
+    ];
+    let (open, interior, tail) = front_fences(front);
+    let mut entries = front_entries(interior);
+    for (key, want) in &wants {
+        let at = entries.iter().position(|e| e.key.as_deref() == Some(*key));
+        match (at, want) {
+            (Some(i), Some(lines)) => entries[i].lines = lines.clone(),
+            (Some(i), None) => { entries.remove(i); }
+            (None, Some(lines)) => entries.push(FrontEntry { key: Some((*key).to_string()), lines: lines.clone() }),
+            (None, None) => {}
+        }
+    }
+    if entries.is_empty() {
+        return String::new();
+    }
+    let mut out = if front.is_empty() { "---\n".to_string() } else { open.to_string() };
+    for e in &entries {
+        for l in &e.lines {
+            out.push_str(l);
+            out.push('\n');
+        }
+    }
+    out.push_str(if front.is_empty() { "---\n\n" } else { tail });
+    out
+}
+
 /// `%20` and friends in a link.
 pub fn percent_decode(s: &str) -> String {
     let b = s.as_bytes();
@@ -409,7 +551,7 @@ fn walk_names(vault: &Path) -> Names {
 /// against.
 pub fn parse_file(text: &str, title: &str, base: Option<&Path>) -> Document {
     let text = text.trim_start_matches('\u{feff}');
-    let (_, body) = front_matter(text);
+    let (front, body) = front_matter(text);
     let mut blocks = crate::paste::markdown_to_blocks(body, crate::paste::Off { file: true, alt: true, ..Default::default() });
     if let Some(dir) = base {
         resolve_images(&mut blocks, dir);
@@ -417,7 +559,7 @@ pub fn parse_file(text: &str, title: &str, base: Option<&Path>) -> Document {
     if blocks.is_empty() {
         blocks.push(Block::text(""));
     }
-    Document { title: RichText::plain(title), icon: None, cover: None, blocks }
+    Document { title: RichText::plain(title), icon: None, cover: None, meta: parse_front_meta(front), blocks }
 }
 
 /// `doc` written back as a Markdown file, after the file's `front` matter.
@@ -921,6 +1063,46 @@ mod tests {
         assert_eq!(front_matter("---\na: 1\n---\n\nbody"), ("---\na: 1\n---\n\n", "body"));
         assert_eq!(front_matter("---\nno end"), ("", "---\nno end"));
         assert_eq!(front_matter("body"), ("", "body"));
+    }
+
+    #[test]
+    fn front_meta_parses_dates_statuses_and_both_tag_forms() {
+        let front = "---\ndate: 2026-11-19\nstatus: \"in-progress\"\ntags:\n  - dev\n  - ducko\n---\n\n";
+        let meta = parse_front_meta(front);
+        assert_eq!(meta.date.as_deref(), Some("2026-11-19"));
+        assert_eq!(meta.status.as_deref(), Some("in-progress"));
+        assert_eq!(meta.tags, vec!["dev".to_string(), "ducko".to_string()]);
+
+        let inline = "---\ntags: [a, \"b c\"]\n---\n\n";
+        assert_eq!(parse_front_meta(inline).tags, vec!["a".to_string(), "b c".to_string()]);
+
+        assert_eq!(parse_front_meta(""), FrontMeta::default());
+    }
+
+    #[test]
+    fn patch_front_touches_only_its_three_keys() {
+        let front = "---\nauthor: amir\ndate: 2026-01-01\ncustom:\n  nested: true\n---\n\n";
+        let meta = FrontMeta { date: Some("2026-11-19".into()), tags: vec!["x".into()], status: Some("done".into()) };
+        let out = patch_front(front, &meta);
+        assert!(out.contains("author: amir\n"), "{out}");
+        assert!(out.contains("custom:\n  nested: true\n"), "{out}");
+        assert!(out.contains("date: 2026-11-19\n"), "{out}");
+        assert!(out.contains("status: done\n"), "{out}");
+        assert!(out.contains("tags:\n  - x\n"), "{out}");
+        // Round-trips: reparsing what we just wrote gives the same meta back.
+        assert_eq!(parse_front_meta(&out), meta);
+    }
+
+    #[test]
+    fn patch_front_never_creates_a_block_for_an_untouched_note() {
+        assert_eq!(patch_front("", &FrontMeta::default()), "");
+    }
+
+    #[test]
+    fn patch_front_builds_a_fresh_block_only_when_meta_has_something() {
+        let meta = FrontMeta { date: Some("2026-11-19".into()), ..Default::default() };
+        let out = patch_front("", &meta);
+        assert_eq!(out, "---\ndate: 2026-11-19\n---\n\n");
     }
 
     #[test]

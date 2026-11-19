@@ -321,6 +321,8 @@ impl Editor {
             Some(Menu::CoverPick { upload }) => self.cover_panel(upload, window, cx),
             Some(Menu::Button { block, offset }) => self.button_panel(block, offset, window, cx),
             Some(Menu::Reminder { block, offset }) => self.reminder_popover(block, offset, window, cx),
+            Some(Menu::Status { pos }) => self.status_menu(pos, window, cx),
+            Some(Menu::Tags { pos, selected }) => self.tags_menu(pos, selected, window, cx),
             _ => None,
         };
         out.extend(menu_el);

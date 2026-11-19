@@ -58,6 +58,7 @@ impl SharedStore {
     pub fn is_markdown(&self, id: &str) -> bool { self.0.borrow().is_markdown(id) }
     pub fn create_markdown(&mut self, doc: &Document, front: &str) -> Result<String> { self.0.borrow_mut().create_markdown(doc, front) }
     pub fn front_matter_of(&self, id: &str) -> String { self.0.borrow().front_matter_of(id) }
+    pub fn all_tags(&self) -> Vec<String> { self.0.borrow().all_tags() }
     pub fn open_local(&mut self, path: &std::path::Path) -> Result<String> { self.0.borrow_mut().open_local(path) }
     pub fn local_path(&self, id: &str) -> Option<std::path::PathBuf> { self.0.borrow().local_path(id) }
     pub fn folder_dir(&self, id: Option<&str>) -> Option<std::path::PathBuf> { self.0.borrow().folder_dir(id) }

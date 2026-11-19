@@ -1213,6 +1213,7 @@ impl Editor {
                             .children(self.doc_icon_el(cx))
                             .child(div().flex_1().min_w_0().child(r.text_el(TITLE, &self.core.doc.title, spec, Align::Left, Some(crate::settings::text("请输入标题").into())))),
                     )
+                    .when(self.has_meta_bar(), |d| d.child(self.meta_bar_el(cx)))
                     .into_any_element()
             }
             Item::Block { path, gap } => {

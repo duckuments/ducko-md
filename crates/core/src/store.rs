@@ -928,10 +928,11 @@ impl Store {
             return (docxml::serialize(doc), vec![]);
         }
         let front = disk.map(|d| crate::markdown::front_matter(d.trim_start_matches('\u{feff}')).0).unwrap_or_default();
+        let front = crate::markdown::patch_front(front, &doc.meta);
         let base = self.base(id);
         let name = base.is_some().then(|| self.markdown_title(id));
         let copied = self.copied.borrow();
-        let out = crate::markdown::write_file_with(doc, front, &crate::markdown::Options {
+        let out = crate::markdown::write_file_with(doc, &front, &crate::markdown::Options {
             library_root: Some(&self.root), base: base.as_deref(), name: name.as_deref(), copied: copied.get(id), original: disk, ..Default::default()
         });
         let bom = if disk.is_some_and(|d| d.starts_with('\u{feff}')) { "\u{feff}" } else { "" };
@@ -1469,6 +1470,7 @@ impl Store {
             self.index.insert(id.clone(), Meta { created: t, modified: t, rel, ..Default::default() });
             derive_tree(&mut self.index);
         }
+        let front = crate::markdown::patch_front(front, &doc.meta);
         let text = format!("{front}{}", crate::markdown::write_file(doc, "", None));
         if let Err(e) = self.write_file(&self.path(&id), text.as_bytes()).and_then(|_| self.save_index()) { self.index.remove(&id); return Err(e); }
         self.record_file_change(&id, None);
@@ -1495,6 +1497,20 @@ impl Store {
         if !self.is_markdown(id) { return String::new(); }
         let text = std::fs::read_to_string(self.path(id)).unwrap_or_default();
         crate::markdown::front_matter(text.trim_start_matches('\u{feff}')).0.to_string()
+    }
+
+    /// Every distinct `tags:` value across the library's Markdown files,
+    /// sorted: autocomplete recommendations for the metadata bar's tag
+    /// field. Scans every file on each call — fine for a field that's
+    /// opened rarely, not cached (ponytail: per-keystroke filtering of a
+    /// vault with tens of thousands of notes would need an index instead).
+    pub fn all_tags(&self) -> Vec<String> {
+        let mut tags: Vec<String> = self.index.iter().filter(|(_, m)| m.markdown)
+            .flat_map(|(id, _)| crate::markdown::parse_front_meta(&self.front_matter_of(id)).tags)
+            .collect();
+        tags.sort_unstable();
+        tags.dedup();
+        tags
     }
 
     /// Where a 本机文件 is.
