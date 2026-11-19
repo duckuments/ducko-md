@@ -291,11 +291,12 @@ impl Theme {
     pub fn customized(&self) -> bool { self.edited }
 }
 
-pub const BUNDLED: [(&str, &str); 4] = [
+pub const BUNDLED: [(&str, &str); 5] = [
     ("craft", include_str!("../assets/themes/craft.css")),
     ("feishu", include_str!("../assets/themes/feishu.css")),
     ("notion", include_str!("../assets/themes/notion.css")),
     ("obsidian", include_str!("../assets/themes/obsidian.css")),
+    ("ducko", include_str!("../assets/themes/ducko.css")),
 ];
 
 static THEMES: RwLock<Vec<Theme>> = RwLock::new(Vec::new());

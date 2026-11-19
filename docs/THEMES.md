@@ -2,9 +2,9 @@
 
 Each ducko document theme is a CSS file. Choosing a theme means choosing that CSS; clicking "Edit CSS" in Settings › Appearance opens it in your editor, and once you save it, documents in every window are immediately repainted with the new style.
 
-The Feishu (Lark) theme is the default on first launch; an existing theme choice is kept. The dropdown lists Feishu, Craft, Notion, and Obsidian, showing options only; selecting one updates the page preview below.
+The Feishu (Lark) theme is the default on first launch; an existing theme choice is kept. The dropdown lists Feishu, Craft, Notion, Obsidian, and ducko, showing options only; selecting one updates the page preview below.
 
-- The built-in themes (Feishu, Craft, Notion, Obsidian) live in `assets/themes/`, each one **with every property's current value written out in full**, so they can be used directly as a reference.
+- The built-in themes (Feishu, Craft, Notion, Obsidian, ducko) live in `assets/themes/`, each one **with every property's current value written out in full**, so they can be used directly as a reference.
 - When editing a built-in theme, the app first copies it in full to `themes/<id>.css` in the library; this copy then replaces the built-in version from then on (shown as "Modified" in the menu; "Restore default" deletes the copy).
 - "Duplicate as new theme" generates `themes/<id>-copy.css`; renaming it makes it your own theme. You can also just drop someone else's `.css` file into the `themes/` folder, and the app will pick it up automatically.
 - Invalid values, or unrecognized selectors or properties, don't break the theme: they're skipped and listed as "not applied" in Settings.
