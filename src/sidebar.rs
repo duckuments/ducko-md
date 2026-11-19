@@ -50,7 +50,7 @@ pub(crate) const NOTE_NAV_W: f32 = 240.;
 
 /// A pane without nav focus fades to this, so cmd-1/2/3 and the arrow keys
 /// read as "which one is bold", not a separate indicator line.
-pub(crate) const NAV_DIM: f32 = 0.55;
+pub(crate) const NAV_DIM: f32 = 0.9;
 
 /// 批量操作 caps at 50 pages.
 pub(crate) const BATCH_LIMIT: usize = 50;
