@@ -30,10 +30,10 @@ fn hue_of(s: &str) -> &'static str {
     hues[(hash_str(s) as usize) % hues.len()]
 }
 
-/// A saturated chip: the hue's own swatch behind white text (not the pale
-/// `light-{hue}` tint used for text highlights elsewhere).
+/// A soft chip: the hue's pale tint behind its own saturated text (the same
+/// pairing DocxXML text highlights use), not a flat grey.
 fn chip_colors(hue: &str) -> (Hsla, Hsla) {
-    (theme::bg_color(hue).unwrap_or(Theme::fill_hover()), gpui::white())
+    (theme::bg_color(&format!("light-{hue}")).unwrap_or(Theme::fill_hover()), theme::text_color(hue).unwrap_or(Theme::text()))
 }
 
 /// `"2026-11-19"` → `(2026, 11, 19)`; permissive about leading zeros, strict
@@ -499,7 +499,7 @@ impl Editor {
                         .justify_center()
                         .rounded(px(7.))
                         .cursor_pointer()
-                        .hover(|s| s.bg(theme::ta(255, 255, 255, 0.25)))
+                        .hover(|s| s.bg(theme::ta(0, 0, 0, 0.08)))
                         .child(icon("x", 10., color))
                         .on_mouse_down(
                             MouseButton::Left,
