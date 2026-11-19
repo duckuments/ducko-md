@@ -402,19 +402,22 @@ impl Theme {
         if crate::native_header::supported() { ca(craft::WINDOW, 0.) } else if crate::theme::glass() { ca(craft::WINDOW, 0.84) } else { ca(craft::WINDOW, 1.) }
     }
 
+    /// The note nav sits more solid than the folder nav beside it (which
+    /// keeps `window()`'s glass): same tint, a fixed 0.8 wash over it.
+    pub fn note_nav_bg() -> Hsla {
+        if crate::settings::prefs().opaque_window || fullscreen() { return ca(craft::WINDOW, 1.) }
+        ca(craft::WINDOW, 0.8)
+    }
+
     /// Sidebar row label: text at 85%.
     pub fn sidebar_text() -> Hsla { ca(craft::N900, 0.85) }
     pub fn sidebar_hover() -> Hsla { ca(craft::N1000, 0.045) }
     /// Selected sidebar row (measured #DEDEDF).
     pub fn sidebar_selected() -> Hsla { ca(craft::N1000, 0.072) }
-    /// Dragging in the sidebar: the receiving folder's wash, the
-    /// slot the row will land in, and the glow a landed row fades out from.
-    pub fn sidebar_drop() -> Hsla { ca(craft::N1000, 0.05) }
+    /// The slot a dragged row will land in.
     pub fn sidebar_drop_slot() -> Hsla { ca(craft::N1000, 0.08) }
-    /// Renaming in the sidebar: the field's thin edge and the soft focus glow around it.
+    /// Renaming in the sidebar: the field's thin edge.
     pub fn sidebar_field_edge() -> Hsla { ca(craft::B500, 0.6) }
-    pub fn sidebar_field_ring() -> Hsla { ca(craft::B500, 0.16) }
-    pub fn sidebar_landed() -> Hsla { ca(craft::N1000, 0.07) }
     /// Section headers on the sidebar.
     pub fn sidebar_section() -> Hsla { c(0x333739) }
     /// Normal monochrome icons: #191919 measured from the supplied Claude Code screenshot.
@@ -550,6 +553,8 @@ pub const SIDEBAR_MIN: f32 = 240.0;
 pub const SIDEBAR_MAX: f32 = 800.0;
 /// The editor keeps at least this much room when the sidebar is dragged wider.
 pub const SIDEBAR_MIN_CONTENT: f32 = 540.0;
+pub const NOTE_NAV_MIN: f32 = 180.0;
+pub const NOTE_NAV_MAX: f32 = 480.0;
 /// Left inset of the header controls that sit beside the macOS traffic lights.
 // On PC, 12pt padding + 4pt margin + half the 28pt button aligns with the sidebar icon at 30pt.
 pub const TRAFFIC_LIGHTS_W: f32 = if cfg!(target_os = "macos") { 92.0 } else { 12.0 };

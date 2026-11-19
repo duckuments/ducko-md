@@ -1,26 +1,10 @@
 //! Dropping onto the sidebar's 我的文档: files from the Finder are imported
 //! into the folder under the pointer (a document row: its folder; elsewhere:
-//! the top), and a 本机文件 row carried up into the tree is imported there.
+//! the top).
 use crate::app::Workspace;
 use crate::settings::tr;
-use crate::theme::{self, Theme};
-use crate::ui::{icon, ui_text};
 use gpui::*;
 use std::path::PathBuf;
-
-/// A 本机文件 row being carried: GPUI's drag payload, drawn as the row lifted.
-#[derive(Clone)]
-pub(crate) struct LocalRowDrag { pub id: String, pub title: String }
-
-impl Render for LocalRowDrag {
-    fn render(&mut self, _: &mut Window, _: &mut Context<Self>) -> impl IntoElement {
-        div().h(px(crate::sidebar::ROW_H)).w(px(220.)).pl(px(6.)).pr(px(10.)).flex().items_center().rounded(px(crate::sidebar::ROW_R))
-            .bg(theme::raised(Theme::bg_body())).shadow(theme::shadow_menu()).opacity(0.96)
-            .child(div().size(px(20.)).flex_none().flex().items_center().justify_center().child(icon("doc-md", crate::sidebar::ROW_ICON, Theme::icon())))
-            .child(div().pl(px(9.)).flex_1().min_w_0().overflow_hidden().whitespace_nowrap().text_ellipsis().text_size(px(13.)).text_color(Theme::text())
-                .child(ui_text(self.title.clone())))
-    }
-}
 
 /// Where a drop on the sidebar lands: in `parent` (None: the top of 我的文档),
 /// before `before` when it opens a slot between rows (index, depth), or last
@@ -82,7 +66,6 @@ impl Workspace {
     pub(crate) fn import_dropped(&mut self, what: crate::app::DropImport, target: SidebarDropAt, window: &mut Window, cx: &mut Context<Self>) {
         match what {
             crate::app::DropImport::Files(paths) => self.import_dropped_files(paths, target, window, cx),
-            crate::app::DropImport::Local(id) => self.import_dropped_local(&id, target, cx),
         }
     }
 
@@ -99,28 +82,6 @@ impl Workspace {
         for dir in &dirs {
             let target = target.clone();
             self.import_folder_then(dir, parent.clone(), false, Some(Box::new(move |w, id| w.place_dropped(&[id.to_string()], &target))), window, cx);
-        }
-        cx.notify();
-    }
-
-    /// A 本机文件 row let go over the tree: a Markdown copy lands there; the
-    /// file itself stays where it is and in 本机文件.
-    pub(crate) fn local_row_dropped(&mut self, id: &str, cx: &mut Context<Self>) {
-        let Some(target) = self.sidebar_drop.take() else { return };
-        self.ask_import(crate::app::DropImport::Local(id.to_string()), target, cx);
-    }
-
-    fn import_dropped_local(&mut self, id: &str, target: SidebarDropAt, cx: &mut Context<Self>) {
-        let Some(doc) = self.doc_of(id, cx) else { return };
-        let front = self.store.front_matter_of(id);
-        match self.store.with(|s| s.create_markdown_in(&doc, &front, target.parent.as_deref())) {
-            Ok(new) => {
-                self.place_dropped(&[new], &target);
-                self.landed_in(target.parent.as_deref());
-                let place = self.drop_place(&target);
-                self.show_toast_kind(crate::ui::ToastKind::Info, &crate::localized_format!("已导入到「{}」，原文件未改动", "Imported into “{}”; the original file is unchanged", place), cx);
-            }
-            Err(e) => self.show_toast_kind(crate::ui::ToastKind::Error, &crate::localized_format!("导入失败：{}", "Could not import: {}", crate::settings::diagnostic(&e.to_string())), cx),
         }
         cx.notify();
     }
@@ -143,26 +104,4 @@ impl Workspace {
         self.folded[1] = false;
     }
 
-    /// Nothing is being dragged any more: forget the drop target.
-    pub(crate) fn settle_sidebar_drop(&mut self, cx: &App) {
-        if self.sidebar_drop.is_some() && !cx.has_active_drag() && !crate::devtools::file_drag() { self.sidebar_drop = None; }
-    }
-
-    /// The 我的文档 heading while a drop would land at the top.
-    pub(crate) fn sidebar_drop_top(&self) -> bool { self.sidebar_drop.as_ref().is_some_and(|t| t.parent.is_none() && t.slot.is_none()) }
-
-    /// The sidebar list's handlers for both kinds of drag.
-    pub(crate) fn sidebar_drop_zone(&self, list: Stateful<Div>, cx: &mut Context<Self>) -> Stateful<Div> {
-        list.on_drag_move(cx.listener(|w, ev: &DragMoveEvent<ExternalPaths>, _, cx| {
-                let at = ev.event.position;
-                if ev.bounds.contains(&at) { w.sidebar_drop_at(at, false, cx); } else if w.sidebar_drop.take().is_some() { cx.notify(); }
-            }))
-            .on_drag_move(cx.listener(|w, ev: &DragMoveEvent<LocalRowDrag>, _, cx| {
-                let at = ev.event.position;
-                if ev.bounds.contains(&at) { w.sidebar_drop_at(at, true, cx); } else if w.sidebar_drop.take().is_some() { cx.notify(); }
-            }))
-            // Where it is let go decides, not the last move heard.
-            .on_drop(cx.listener(|w, paths: &ExternalPaths, window, cx| { w.sidebar_drop_at(window.mouse_position(), false, cx); w.sidebar_files_dropped(paths.paths().to_vec(), cx) }))
-            .on_drop(cx.listener(|w, d: &LocalRowDrag, window, cx| { w.sidebar_drop_at(window.mouse_position(), true, cx); w.local_row_dropped(&d.id, cx) }))
-    }
 }

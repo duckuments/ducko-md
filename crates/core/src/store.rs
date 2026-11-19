@@ -167,6 +167,9 @@ pub struct Settings {
     /// Dragged sidebar width; `None` is the default.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub sidebar_width: Option<f32>,
+    /// Dragged note nav width; `None` is the default.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub note_nav_width: Option<f32>,
     /// 隐藏引用列表's 不再提示.
     #[serde(default, skip_serializing_if = "std::ops::Not::not")]
     pub refs_hide_no_ask: bool,
