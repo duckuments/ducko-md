@@ -316,6 +316,7 @@ impl Workspace {
             .h_full()
             .flex()
             .flex_col()
+            .bg(Theme::note_nav_bg())
             .child(header)
             .child(div().id("note-nav-list").flex_1().min_h_0().overflow_y_scroll().child(body))
             .into_any_element()

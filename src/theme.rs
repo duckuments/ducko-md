@@ -402,6 +402,13 @@ impl Theme {
         if crate::native_header::supported() { ca(craft::WINDOW, 0.) } else if crate::theme::glass() { ca(craft::WINDOW, 0.84) } else { ca(craft::WINDOW, 1.) }
     }
 
+    /// The note nav sits more solid than the folder nav beside it (which
+    /// keeps `window()`'s glass): same tint, a fixed 0.8 wash over it.
+    pub fn note_nav_bg() -> Hsla {
+        if crate::settings::prefs().opaque_window || fullscreen() { return ca(craft::WINDOW, 1.) }
+        ca(craft::WINDOW, 0.8)
+    }
+
     /// Sidebar row label: text at 85%.
     pub fn sidebar_text() -> Hsla { ca(craft::N900, 0.85) }
     pub fn sidebar_hover() -> Hsla { ca(craft::N1000, 0.045) }
