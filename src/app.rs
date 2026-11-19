@@ -735,6 +735,8 @@ impl Workspace {
             && self.document_peers(previous, window, cx).is_empty() { self.store.forget_loaded(previous); }
         self.editor = Some(editor);
         self.current = Some(id.to_string());
+        // The note nav follows the open document, like the left column reveals its ancestors.
+        self.folder_current = self.entries.iter().find(|e| e.id == id).and_then(|e| e.meta.parent.clone());
         crate::quick_note::used(id, cx);
         self.reveal_in_tree(id);
         self.sync_sub_pages(cx);
@@ -1280,7 +1282,7 @@ impl Workspace {
     /// traffic lights and 展开侧栏) on the left, + on the right. Below a
     /// usable width it is None and the caller shows a search icon instead.
     pub(crate) fn header_search(&self, window: &Window, cx: &mut Context<Self>) -> Option<Stateful<Div>> {
-        let main = f32::from(window.viewport_size().width) - if self.sidebar_open { self.sidebar_w(window) } else { 0. };
+        let main = f32::from(window.viewport_size().width) - self.nav_w(window);
         let title = crate::settings::label(crate::settings::text("主页"));
         let title_w = f32::from(window.text_system().shape_line(title.clone().into(), px(17.), &[window.text_style().highlight(HighlightStyle { font_weight: Some(FontWeight::SEMIBOLD), ..Default::default() }).to_run(title.len())], None).width);
         // page_header's left inset (26 with the sidebar, else the traffic
@@ -1521,17 +1523,19 @@ impl Render for Workspace {
         crate::editor::image::frame_drawn(window, cx);
         // Full screen: the sidebar is solid (`Theme::window`) and the native glass stays hidden.
         crate::theme::set_fullscreen(window.is_fullscreen());
-        self.native_sidebar.sync(if self.sidebar_open && !crate::theme::fullscreen() { self.sidebar_w(window) } else { 0. }, window);
-        // The pane keeps its minimum beside the sidebar: opening the sidebar in
-        // a narrow window widens the window rather than squeezing the note.
-        let min_w = DOC_MIN_W + if self.sidebar_open { self.sidebar_w(window) } else { 0. };
+        self.native_sidebar.sync(if crate::theme::fullscreen() { 0. } else { self.nav_w(window) }, window);
+        // The pane keeps its minimum beside the nav: opening it in a narrow
+        // window widens the window rather than squeezing the note.
+        let min_w = DOC_MIN_W + self.nav_w(window);
         if min_w != self.min_w {
             self.min_w = min_w;
             window.set_window_min_size(size(px(min_w), px(480.)));
             let vs = window.viewport_size();
             if f32::from(vs.width) < min_w - 0.5 && !window.is_fullscreen() { window.resize(size(px(min_w), vs.height)); }
         }
-        let sidebar = if self.sidebar_open { Some(if matches!(self.view, View::Settings | View::Trash) { self.render_settings_sidebar(window, cx) } else { self.render_sidebar(window, cx) }) } else { None };
+        let settings_mode = matches!(self.view, View::Settings | View::Trash);
+        let folder_nav = self.sidebar_open.then(|| if settings_mode { self.render_settings_sidebar(window, cx) } else { self.render_folder_nav(window, cx) });
+        let note_nav = (self.sidebar_open && !settings_mode).then(|| self.render_note_nav(cx));
         let row_menu = self.render_row_menu(window, cx);
         let resize = self.sidebar_open.then(|| self.render_resize_handle(window, cx));
         let resize_overlay = self.render_resize_overlay(cx);
@@ -1560,7 +1564,7 @@ impl Render for Workspace {
                 .h_full()
                 .flex()
                 .flex_col()
-                .child(self.top_bar(f32::from(window.viewport_size().width) - if self.sidebar_open { self.sidebar_w(window) } else { 0. }, cx))
+                .child(self.top_bar(f32::from(window.viewport_size().width) - self.nav_w(window), cx))
                 .children(self.render_history_banner(cx))
                 .child(
                     div()
@@ -1718,7 +1722,8 @@ impl Render for Workspace {
                 if w.search_open { w.close_search(window, cx); } else { w.open_search(window, cx); }
                 cx.stop_propagation();
             }))
-            .children(sidebar)
+            .children(folder_nav)
+            .children(note_nav)
             .child(note)
             .children(resize)
             .children(crate::ui::window_controls(window))

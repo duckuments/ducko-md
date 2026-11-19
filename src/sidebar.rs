@@ -45,6 +45,10 @@ pub(crate) const GROUP_GAP: f32 = 16.;
 pub(crate) const SECTION_H: f32 = 34.;
 pub(crate) const SECTION_TOP: f32 = 6.;
 
+/// The note nav (the middle column, between the folder nav and the editor):
+/// a fixed width, unlike the folder nav which the user can drag.
+pub(crate) const NOTE_NAV_W: f32 = 240.;
+
 /// 批量操作 caps at 50 pages.
 pub(crate) const BATCH_LIMIT: usize = 50;
 
@@ -109,11 +113,19 @@ impl Workspace {
         self.sidebar_width.clamp(theme::SIDEBAR_MIN, max)
     }
 
-    pub(crate) fn render_sidebar(&mut self, window: &mut Window, cx: &mut Context<Self>) -> AnyElement {
-        let entries: Vec<Entry> = self.entries.clone();
-        self.more_bounds.borrow_mut().clear();
-        self.settle_sidebar_drop(cx);
+    /// Total width of the nav: the folder column alone in 设置/回收站 (which
+    /// keep their own single pane), folder + note columns everywhere else.
+    pub(crate) fn nav_w(&self, window: &Window) -> f32 {
+        if !self.sidebar_open {
+            return 0.;
+        }
+        let w = self.sidebar_w(window);
+        if matches!(self.view, View::Settings | View::Trash) { w } else { w + NOTE_NAV_W }
+    }
 
+    /// The left column: folders only, no docs. Picking one (or none, via 主页)
+    /// drives what the note column beside it shows.
+    pub(crate) fn render_folder_nav(&mut self, window: &mut Window, cx: &mut Context<Self>) -> AnyElement {
         let header = div()
             .h(px(crate::app::HEADER_H))
             .flex_none()
@@ -171,86 +183,17 @@ impl Workspace {
                     )),
                 )
                 .child(crate::settings::tr("主页", "Home"))
-                .on_click(cx.listener(|w, _, _, cx| w.show_view(View::Home, cx))),
+                .on_click(cx.listener(|w, _, _, cx| {
+                    w.folder_current = None;
+                    w.show_view(View::Home, cx);
+                })),
         );
 
-        let mut list = div().flex().flex_col().px(px(SB_X)).pb(px(8.));
-        // Pinned docs are shortcuts: they stay in 我的文档 too.
-        let pinned: Vec<&Entry> = entries.iter().filter(|e| e.meta.pinned).collect();
-        if !pinned.is_empty() {
-            list = list.child(self.section(0, crate::settings::text("置顶"), cx));
-            if !self.folded[0] {
-                for e in pinned {
-                    list = list.child(self.doc_row(e, "pinned", 0, false, cx));
-                }
-            }
-            list = list.child(div().h(px(GROUP_GAP - SECTION_TOP)));
-        }
-        // Dropped from outside with no tree shown to open a slot in: the heading lights.
-        list = list.child(self.section(1, crate::settings::text("我的文档"), cx).rounded(px(ROW_R)).when(self.sidebar_drop_top(), |d| d.bg(Theme::sidebar_selected())));
-        if !self.folded[1] {
-            list = list.child(self.render_folder_rows(window, cx));
-        }
-        // 本机文件: Markdown files edited where they are, outside the library.
-        let local = self.local_entries();
-        if !local.is_empty() {
-            list = list.child(div().h(px(GROUP_GAP - SECTION_TOP))).child(self.section(2, crate::settings::tr("本机文件", "Files on this computer"), cx));
-            if !self.folded[2] {
-                for e in local {
-                    list = list.child(self.doc_row(e, "local", 0, false, cx));
-                }
-            }
-        }
-
-        // The footer holds one row: 设置 (存储管理 and 回收站 live in 设置).
-        // The 批量操作 toolbar keeps the footer glyphs: bare on the sidebar, a rounded fill on hover.
-        let footer_btn = |id: &'static str, name: &'static str, tip: &'static str, enabled: bool, on: bool| {
-            let group = SharedString::from(format!("{id}-slot"));
-            div()
-                .id(id)
-                .flex_none()
-                .w(px(36.))
-                .h(px(32.))
-                .group(group.clone())
-                .when(enabled, |d| d.cursor_pointer())
-                .tip(tip, None)
-                .child(
-                    div()
-                        .size_full()
-                        .flex()
-                        .items_center()
-                        .justify_center()
-                        .rounded(px(8.))
-                        .when(on, |d| d.bg(Theme::sidebar_selected()))
-                        .when(enabled && !on, |d| d.group_hover(group, |s| s.bg(Theme::sidebar_hover())))
-                        .child(match (on, enabled) {
-                            (true, _) => icon(&format!("{name}-filled"), 17., Theme::icon()),
-                            (false, true) => icon(name, 17., Theme::icon()),
-                            (false, false) => icon(name, 17., Theme::text_disabled()),
-                        }),
-                )
-        };
-        let some = self.batch.as_ref().is_some_and(|b| !b.is_empty());
-        // 设置; in 设置 the same row reads 返回 (`settings.rs`), so one spot toggles.
-        let footer = div()
-            .flex_none()
-            .flex()
-            .flex_col()
-            .when(self.batch.is_none(), |d| {
-                d.child(footer_slot(
-                    footer_row("ft-settings", "settings-gear", crate::settings::tr("设置", "Settings"))
-                        .on_click(cx.listener(|w, _, _, cx| w.show_view(View::Settings, cx))),
-                ))
-            })
-            // 批量操作 toolbar: 创建副本 | 移动到 | 删除, minus the cloud ones.
-            .when(self.batch.is_some(), |d| {
-                d.child(
-                    div().h(px(46.)).mx(px(SB_X + 6. + 10. - 18.)).flex().items_center().gap(px(4.))
-                        .child(footer_btn("bt-copy", "copy", crate::settings::text("创建副本"), some, false).on_click(cx.listener(|w, _, _, cx| w.batch_copy(cx))))
-                        .child(footer_btn("bt-move", "folder-input", crate::settings::text("移动到"), some, false).on_click(cx.listener(|w, _, window, cx| w.batch_move(window, cx))))
-                        .child(footer_btn("bt-delete", "bin", crate::settings::text("删除"), some, false).on_click(cx.listener(|w, _, _, cx| w.ask_batch_delete(cx)))),
-                )
-            });
+        let tree = self.folder_tree_rows(None, 0, cx);
+        let footer = div().flex_none().flex().flex_col().child(footer_slot(
+            footer_row("ft-settings", "settings-gear", crate::settings::tr("设置", "Settings"))
+                .on_click(cx.listener(|w, _, _, cx| w.show_view(View::Settings, cx))),
+        ));
 
         div()
             .w(px(self.sidebar_w(window)))
@@ -260,10 +203,260 @@ impl Workspace {
             .flex_col()
             .child(header)
             .child(nav)
-            .child(self.sidebar_drop_zone(div().id("doc-list").flex_1().min_h_0().overflow_y_scroll().track_scroll(&self.list_scroll).child(list), cx))
+            .child(
+                div()
+                    .id("folder-nav-list")
+                    .flex_1()
+                    .min_h_0()
+                    .overflow_y_scroll()
+                    .track_scroll(&self.list_scroll)
+                    .child(div().flex().flex_col().px(px(SB_X)).pb(px(8.)).pt(px(4.)).child(tree)),
+            )
             .children(crate::changelog::card(cx.listener(|_, _, _, cx| cx.notify())))
             .child(footer)
             .into_any_element()
+    }
+
+    /// 文件夹 only, recursively; a folder's own contents show in the note
+    /// column once it is picked, not inline here.
+    fn folder_tree_rows(&self, parent: Option<&str>, depth: usize, cx: &mut Context<Self>) -> Div {
+        let mut col = div().flex().flex_col();
+        let folders: Vec<Entry> = self.level_entries(parent).into_iter().filter(|e| e.meta.folder.is_some()).collect();
+        for f in &folders {
+            let selected = self.folder_current.as_deref() == Some(f.id.as_str());
+            col = col.child(self.nav_row(f, depth, selected, cx));
+            if self.expanded.contains(&f.id) {
+                col = col.child(self.folder_tree_rows(Some(&f.id), depth + 1, cx));
+            }
+        }
+        col
+    }
+
+    /// The note column: the picked folder's notes (置顶 and 本机文件 at the
+    /// top level, as they were in 我的文档), or the open document's siblings
+    /// when nothing was picked explicitly (open() keeps `folder_current` in
+    /// step with it).
+    pub(crate) fn render_note_nav(&mut self, cx: &mut Context<Self>) -> AnyElement {
+        let folder_id = self.folder_current.clone();
+        let title = folder_id
+            .as_deref()
+            .and_then(|id| self.entries.iter().find(|e| e.id == id))
+            .map(|e| display_title(&e.title))
+            .unwrap_or_else(|| crate::settings::tr("我的文档", "My documents").to_string());
+
+        let header = div()
+            .h(px(crate::app::HEADER_H))
+            .flex_none()
+            .flex()
+            .items_center()
+            .px(px(SB_X))
+            .title_bar()
+            .child(
+                div()
+                    .min_w_0()
+                    .overflow_hidden()
+                    .whitespace_nowrap()
+                    .text_ellipsis()
+                    .font_weight(FontWeight::SEMIBOLD)
+                    .text_color(Theme::text())
+                    .child(ui_text(title)),
+            );
+
+        let mut body = div().flex().flex_col().px(px(SB_X)).pb(px(8.)).pt(px(4.));
+        if folder_id.is_none() {
+            // Pinned docs are shortcuts: they stay in the plain list too.
+            let pinned: Vec<Entry> = self.entries.iter().filter(|e| e.meta.pinned).cloned().collect();
+            if !pinned.is_empty() {
+                body = body.child(self.nav_label(crate::settings::text("置顶")));
+                for e in &pinned {
+                    body = body.child(self.nav_row(e, 0, false, cx));
+                }
+                body = body.child(div().h(px(GROUP_GAP)));
+            }
+            // 本机文件: Markdown files edited where they are, outside the library.
+            let local: Vec<Entry> = self.local_entries().into_iter().cloned().collect();
+            if !local.is_empty() {
+                body = body.child(self.nav_label(crate::settings::tr("本机文件", "Files on this computer")));
+                for e in &local {
+                    body = body.child(self.nav_row(e, 0, false, cx));
+                }
+                body = body.child(div().h(px(GROUP_GAP)));
+            }
+        }
+        let notes: Vec<Entry> = self.level_entries(folder_id.as_deref()).into_iter().filter(|e| e.meta.folder.is_none() && !e.meta.local()).collect();
+        if notes.is_empty() {
+            if folder_id.is_some() {
+                body = body.child(crate::trash::empty_state("illus/empty-list.svg", crate::settings::tr("这个文件夹还是空的", "This folder is empty")));
+            }
+        } else {
+            for e in &notes {
+                let selected = self.view == View::Doc && self.current.as_deref() == Some(e.id.as_str());
+                body = body.child(self.nav_row(e, 0, selected, cx));
+            }
+        }
+
+        div()
+            .w(px(NOTE_NAV_W))
+            .flex_none()
+            .h_full()
+            .flex()
+            .flex_col()
+            .child(header)
+            .child(div().id("note-nav-list").flex_1().min_h_0().overflow_y_scroll().child(body))
+            .into_any_element()
+    }
+
+    /// A plain section label (no fold, no batch toolbar — those stayed with
+    /// the retired combined sidebar).
+    fn nav_label(&self, title: &str) -> Div {
+        div().h(px(SECTION_H)).pl(px(4.)).pt(px(SECTION_TOP)).flex().items_center().child(
+            div()
+                .px(px(4.))
+                .text_size(px(theme::ui_font()))
+                .line_height(px(theme::ui_font() + 7.))
+                .font_weight(FontWeight::SEMIBOLD)
+                .text_color(Theme::sidebar_section())
+                .child(title.to_string()),
+        )
+    }
+
+    /// Picking a folder in the nav: it does not touch the open document, only
+    /// what the note column shows.
+    pub(crate) fn select_folder(&mut self, id: &str) {
+        self.folder_current = Some(id.to_string());
+    }
+
+    /// A row for the folder or note navs: no drag (the old combined sidebar's
+    /// reorder/drop system stayed behind), but full rename and "…" menu parity
+    /// via the existing `row_menu` (`render_row_menu` dispatches by entry kind).
+    fn nav_row(&self, e: &Entry, depth: usize, selected: bool, cx: &mut Context<Self>) -> Stateful<Div> {
+        let folder = e.meta.folder.is_some();
+        let (id_click, id_menu, id_more, id_toggle) = (e.id.clone(), e.id.clone(), e.id.clone(), e.id.clone());
+        let has_children = folder && self.entries.iter().any(|c| c.meta.folder.is_some() && c.meta.parent.as_deref() == Some(e.id.as_str()));
+        let expanded = self.expanded.contains(&e.id);
+        let renaming_field = self.rename.as_ref().filter(|r| r.id == e.id).map(|r| r.field.clone());
+
+        let title = match renaming_field {
+            Some(field) => div()
+                .ml(px(2.))
+                .mr(px(4.))
+                .flex_1()
+                .min_w_0()
+                .h(px(26.))
+                .px(px(6.))
+                .flex()
+                .items_center()
+                .rounded(px(ROW_R - 2.))
+                .bg(crate::theme::raised(Theme::bg_body()))
+                .border_1()
+                .border_color(Theme::sidebar_field_edge())
+                .text_size(px(theme::ui_font()))
+                .child(field)
+                .into_any_element(),
+            None => div()
+                .pl(px(9.))
+                .flex_1()
+                .min_w_0()
+                .text_size(px(theme::ui_font()))
+                .line_height(px(ROW_H))
+                .overflow_hidden()
+                .whitespace_nowrap()
+                .text_ellipsis()
+                .text_color(if selected { Theme::text() } else { Theme::sidebar_text() })
+                .child(ui_text(display_title(&e.title)))
+                .into_any_element(),
+        };
+        let renaming = self.rename.as_ref().is_some_and(|r| r.id == e.id);
+
+        div()
+            .id(SharedString::from(format!("nav-{}", e.id)))
+            .group("nav-row")
+            .h(px(ROW_H))
+            .w_full()
+            .flex()
+            .items_center()
+            .mb(px(ROW_GAP))
+            .rounded(px(ROW_R))
+            .pl(px(6. + 18. * depth as f32))
+            .pr(px(4.))
+            .cursor_pointer()
+            .when(selected, |d| d.bg(Theme::sidebar_selected()))
+            .when(!selected, |d| d.hover(|s| s.bg(Theme::sidebar_hover())))
+            .child(
+                div()
+                    .size(px(20.))
+                    .flex_none()
+                    .flex()
+                    .items_center()
+                    .justify_center()
+                    .when(has_children, |d| {
+                        d.cursor_pointer().on_mouse_down(
+                            MouseButton::Left,
+                            cx.listener(move |w, _: &MouseDownEvent, _, cx| {
+                                cx.stop_propagation();
+                                if !w.expanded.remove(&id_toggle) {
+                                    w.expanded.insert(id_toggle.clone());
+                                }
+                                cx.notify();
+                            }),
+                        )
+                    })
+                    .map(|d| match &e.icon {
+                        _ if folder => d.child(icon(if expanded { "folder-open" } else { "folder" }, ROW_ICON, Theme::icon())),
+                        _ if e.meta.markdown => d.child(icon("doc-md", ROW_ICON, Theme::icon())),
+                        Some(em) => d.text_size(px(theme::ui_font())).line_height(px(theme::ui_font() + 7.)).child(em.clone()),
+                        None => d.child(icon("doc", ROW_ICON, Theme::icon())),
+                    }),
+            )
+            .child(title)
+            .when(!renaming, |d| d.child(self.nav_more_button(&id_more, cx)))
+            .on_mouse_down(
+                MouseButton::Left,
+                cx.listener(move |w, _: &MouseDownEvent, window, cx| {
+                    if w.rename.as_ref().is_some_and(|r| r.id == id_click) {
+                        return;
+                    }
+                    if folder { w.select_folder(&id_click); } else { w.open(&id_click, window, cx); }
+                    cx.notify();
+                }),
+            )
+            .on_mouse_down(
+                MouseButton::Right,
+                cx.listener(move |w, ev: &MouseDownEvent, _, cx| {
+                    w.row_menu = Some(RowMenu { id: id_menu.clone(), pos: ev.position, corner: Corner::TopLeft, sub: false, batch: false });
+                    cx.notify();
+                }),
+            )
+    }
+
+    /// The nav rows' "…": no hover-reveal animation (that lived in the
+    /// combined sidebar's per-frame spring system), just a plain group-hover
+    /// fade, opening the same `render_row_menu`.
+    fn nav_more_button(&self, id: &str, cx: &mut Context<Self>) -> Stateful<Div> {
+        let id = id.to_string();
+        let (id_open, id_click) = (id.clone(), id);
+        let open = self.row_menu.as_ref().is_some_and(|m| m.id == id_open);
+        div()
+            .id(SharedString::from(format!("nav-more-{id_open}")))
+            .size(px(22.))
+            .mr(px(4.))
+            .flex_none()
+            .flex()
+            .items_center()
+            .justify_center()
+            .rounded(px(6.))
+            .when(!open, |d| d.opacity(0.).group_hover("nav-row", |s| s.opacity(1.)))
+            .when(open, |d| d.bg(Theme::sidebar_selected()))
+            .hover(|s| s.bg(Theme::sidebar_selected()))
+            .child(icon("ellipsis", 15., Theme::icon()))
+            .on_mouse_down(
+                MouseButton::Left,
+                cx.listener(move |w, ev: &MouseDownEvent, _, cx| {
+                    cx.stop_propagation();
+                    w.row_menu = Some(RowMenu { id: id_click.clone(), pos: ev.position, corner: Corner::TopLeft, sub: false, batch: false });
+                    cx.notify();
+                }),
+            )
     }
 
     /// Width handle: a 15px hit strip straddling the sidebar edge (6px inside,
