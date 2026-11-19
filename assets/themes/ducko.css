@@ -170,7 +170,7 @@ h1 {
   font-family: system-ui;
   font-size: 30px;
   line-height: 39px;
-  font-weight: 600;
+  font-weight: 700;
   color: var(--color-blue);
   margin-top: 32px;
   margin-bottom: 4px;
@@ -180,7 +180,7 @@ h2 {
   font-family: system-ui;
   font-size: 24px;
   line-height: 31px;
-  font-weight: 600;
+  font-weight: 700;
   color: var(--color-purple);
   margin-top: 22px;
   margin-bottom: 4px;
@@ -190,7 +190,7 @@ h3 {
   font-family: system-ui;
   font-size: 20px;
   line-height: 26px;
-  font-weight: 600;
+  font-weight: 700;
   color: var(--color-red);
   margin-top: 16px;
   margin-bottom: 4px;
@@ -200,7 +200,7 @@ h4 {
   font-family: system-ui;
   font-size: 16px;
   line-height: 24px;
-  font-weight: 600;
+  font-weight: 700;
   color: var(--color-orange);
   margin-top: 12px;
   margin-bottom: 4px;
@@ -210,7 +210,7 @@ h5 {
   font-family: system-ui;
   font-size: 16px;
   line-height: 24px;
-  font-weight: 600;
+  font-weight: 700;
   color: var(--color-green);
   margin-top: 8px;
   margin-bottom: 4px;
@@ -220,7 +220,7 @@ h6 {
   font-family: system-ui;
   font-size: 16px;
   line-height: 24px;
-  font-weight: 600;
+  font-weight: 700;
   color: var(--color-gray);
   margin-top: 8px;
   margin-bottom: 4px;
@@ -230,7 +230,7 @@ h7 {
   font-family: system-ui;
   font-size: 16px;
   line-height: 24px;
-  font-weight: 600;
+  font-weight: 700;
   color: var(--color-gray);
   margin-top: 8px;
   margin-bottom: 4px;
@@ -240,7 +240,7 @@ h8 {
   font-family: system-ui;
   font-size: 16px;
   line-height: 24px;
-  font-weight: 600;
+  font-weight: 700;
   color: var(--color-gray);
   margin-top: 8px;
   margin-bottom: 4px;
@@ -250,7 +250,7 @@ h9 {
   font-family: system-ui;
   font-size: 16px;
   line-height: 24px;
-  font-weight: 600;
+  font-weight: 700;
   color: var(--color-gray);
   margin-top: 8px;
   margin-bottom: 4px;
