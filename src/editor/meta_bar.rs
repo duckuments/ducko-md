@@ -27,9 +27,13 @@ fn hash_str(s: &str) -> u64 {
 /// A readable, deterministic chip colour for a tag or status name: one of
 /// `palette::HUES`'s six colourful hues (not gray), picked from its text so
 /// the same name always gets the same colour.
+///
+/// Uses the hash's high bits: `FxHasher`'s low bits are the least mixed
+/// (each multiply-rotate round affects them the least), so taking `% 6` of
+/// the raw hash clusters short strings — tags kept landing on orange.
 fn hue_of(s: &str) -> &'static str {
     let hues = &crate::palette::HUES[1..];
-    hues[(hash_str(s) as usize) % hues.len()]
+    hues[((hash_str(s) >> 32) as usize) % hues.len()]
 }
 
 /// A dark chip: the theme's saturated text-color swatch for this hue (not
@@ -725,5 +729,29 @@ impl Editor {
             })
             .child(self.tag_field.clone())
             .on_mouse_down(MouseButton::Left, |_, _, cx| cx.stop_propagation())
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::hue_of;
+    use std::collections::HashSet;
+
+    /// Regression guard for the low-bits skew `hue_of` used to have (one
+    /// hue, usually orange, dominated short tag names): over a representative
+    /// sample, no single hue should take more than half the words, and every
+    /// hue should show up at least once.
+    #[test]
+    fn hue_of_spreads_across_a_word_sample() {
+        let words = ["dev", "implementation", "agent", "ducko", "idea", "bug", "feature", "project", "meeting", "planning",
+            "frontend", "backend", "api", "design", "research", "personal", "work", "urgent", "review", "notes",
+            "tag1", "tag2", "tag3", "test", "demo", "draft", "archive", "todo", "done", "blocked"];
+        let mut counts = std::collections::HashMap::new();
+        for w in words {
+            *counts.entry(hue_of(w)).or_insert(0) += 1;
+        }
+        let seen: HashSet<_> = counts.keys().copied().collect();
+        assert_eq!(seen.len(), crate::palette::HUES.len() - 1, "every colourful hue should turn up: {counts:?}");
+        assert!(counts.values().all(|&n| n <= words.len() / 2), "one hue dominates: {counts:?}");
     }
 }
