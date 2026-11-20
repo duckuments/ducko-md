@@ -3,6 +3,7 @@
 //! `parse_front_meta` / `patch_front`). Markdown-only, like the front
 //! matter itself — a DocxXML document has none.
 
+use super::keymap as k;
 use super::overlays::at;
 use super::view::{Editor, EditorEvent, Menu};
 use crate::editor_theme::{self as theme, Theme};
@@ -12,11 +13,27 @@ use crate::editor_ui::{
 use crate::input::TextFieldEvent;
 use crate::model::FrontMeta;
 use gpui::{prelude::FluentBuilder, *};
+use std::cell::Cell;
 use std::hash::{Hash, Hasher};
+use std::rc::Rc;
 
 const STATUS_PRESETS: [&str; 3] = ["active", "in-progress", "done"];
 /// 22 tall pill chips (date / status / tags), 6 apart, under the title.
 const CHIP_H: f32 = 22.;
+
+/// Window bounds (last frame) of the date chip and the "+" tag button, so
+/// their keyboard shortcuts (`AddTag` / `SelectDate`) can open the same
+/// popover a click would, without a mouse position to anchor to.
+pub struct MetaBarUi {
+    date_bounds: Rc<Cell<Option<Bounds<Pixels>>>>,
+    tag_bounds: Rc<Cell<Option<Bounds<Pixels>>>>,
+}
+
+impl MetaBarUi {
+    pub fn new() -> Self {
+        MetaBarUi { date_bounds: Rc::default(), tag_bounds: Rc::default() }
+    }
+}
 
 fn hash_str(s: &str) -> u64 {
     let mut h = rustc_hash::FxHasher::default();
@@ -544,6 +561,34 @@ impl Editor {
         Some(at(pos, Corner::TopLeft, el))
     }
 
+    // ---- keyboard shortcuts (⌘⇧T add tag, ⌘⌥D select date)
+
+    pub(super) fn on_add_tag_action(
+        &mut self,
+        _: &k::AddTag,
+        window: &mut Window,
+        cx: &mut Context<Self>,
+    ) {
+        if !self.guard(window, cx) || !self.has_meta_bar() {
+            return;
+        }
+        let Some(b) = self.meta_bar.tag_bounds.get() else { return };
+        self.open_tags_menu(b.origin + point(px(0.), b.size.height), window, cx);
+    }
+
+    pub(super) fn on_select_date_action(
+        &mut self,
+        _: &k::SelectDate,
+        window: &mut Window,
+        cx: &mut Context<Self>,
+    ) {
+        if !self.guard(window, cx) || !self.has_meta_bar() {
+            return;
+        }
+        let Some(b) = self.meta_bar.date_bounds.get() else { return };
+        self.open_date_menu(b.origin + point(px(0.), b.size.height), window, cx);
+    }
+
     // ---- the bar itself
 
     /// Whether the open document even has a front-matter bar to show
@@ -581,8 +626,10 @@ impl Editor {
         let open = matches!(self.menu, Some(Menu::Date { .. }));
         let (set, created) = self.display_date();
         let (y, m, d) = set.unwrap_or(created);
+        let record = self.meta_bar.date_bounds.clone();
         div()
             .id("meta-date")
+            .relative()
             .flex_none()
             .h(px(CHIP_H))
             .px(px(8.))
@@ -598,6 +645,7 @@ impl Editor {
             })
             .child(icon("calendar", 13., Theme::icon()))
             .child(format!("{y:04}-{m:02}-{d:02}"))
+            .child(canvas(move |b, _, _| record.set(Some(b)), |_, _, _, _| {}).absolute().inset_0())
             .when(!self.read_only, |el| {
                 el.cursor_pointer()
                     .hover(|s| s.bg(Theme::fill_hover()))
@@ -685,8 +733,10 @@ impl Editor {
     }
 
     fn add_tag_button_el(&self, cx: &mut Context<Self>) -> impl IntoElement {
+        let record = self.meta_bar.tag_bounds.clone();
         div()
             .id("meta-add-tag")
+            .relative()
             .flex_none()
             .size(px(CHIP_H))
             .flex()
@@ -696,6 +746,7 @@ impl Editor {
             .text_color(Theme::icon())
             .hover(|s| s.bg(Theme::fill_hover()))
             .child(icon("plus", 12., Theme::icon()))
+            .child(canvas(move |b, _, _| record.set(Some(b)), |_, _, _, _| {}).absolute().inset_0())
             .tip(crate::settings::text("添加标签"), None)
             .when(!self.read_only, |d| {
                 d.cursor_pointer().on_mouse_down(

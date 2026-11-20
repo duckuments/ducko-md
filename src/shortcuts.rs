@@ -195,6 +195,8 @@ fn info(name: &str) -> Option<(usize, &'static str, &'static str)> {
         "ReadMode" => (1, "阅读模式", "Reading mode"),
         "FindInDoc" => (1, "文档内查找", "Find in document"),
         "ReplaceInDoc" => (1, "查找和替换", "Find and replace"),
+        "AddTag" => (1, "添加标签", "Add tag"),
+        "SelectDate" => (1, "选择日期", "Select date"),
         "Undo" => (2, "撤销", "Undo"),
         "Redo" => (2, "重做", "Redo"),
         "Copy" => (2, "复制", "Copy"),

@@ -286,6 +286,7 @@ pub struct Editor {
     /// Every tag used elsewhere in the library, for the tag field's
     /// autocomplete (kept current by the workspace, like `sub_pages`).
     pub tag_options: Vec<String>,
+    pub(super) meta_bar: super::meta_bar::MetaBarUi,
     pub(super) cover_ui: super::cover::CoverUi,
     pub find: Option<super::find::Find>,
     pub find_field: Entity<TextField>,
@@ -719,6 +720,7 @@ impl Editor {
             status_field,
             tag_field,
             tag_options: vec![],
+            meta_bar: super::meta_bar::MetaBarUi::new(),
             cover_ui: super::cover::CoverUi::new(),
             find: None,
             find_field,
@@ -924,7 +926,7 @@ impl Editor {
         cx.notify();
     }
 
-    fn guard(&self, window: &Window, cx: &mut Context<Self>) -> bool {
+    pub(super) fn guard(&self, window: &Window, cx: &mut Context<Self>) -> bool {
         if self.focus.is_focused(window) {
             true
         } else {
@@ -3607,6 +3609,8 @@ impl Editor {
             .on_action(guard(cx, Self::on_link))
             .on_action(guard(cx, Self::on_apply_last_color))
             .on_action(guard(cx, Self::on_insert_reminder))
+            .on_action(guard(cx, Self::on_add_tag_action))
+            .on_action(guard(cx, Self::on_select_date_action))
             .on_action(guard(cx, Self::on_turn_text))
             .on_action(guard(cx, Self::on_turn_h1))
             .on_action(guard(cx, Self::on_turn_h2))

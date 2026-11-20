@@ -53,6 +53,9 @@ actions!(
         Link,
         ApplyLastColor,
         InsertReminder,
+        // Metadata bar (date / tags / status, Markdown only).
+        AddTag,
+        SelectDate,
         TurnText,
         TurnH1,
         TurnH2,
@@ -196,6 +199,8 @@ pub fn bind_keys(cx: &mut App) {
         KeyBinding::new("cmd-k", Link, c),
         KeyBinding::new("cmd-alt-h", ApplyLastColor, c),
         KeyBinding::new("cmd-alt-w", InsertReminder, c),
+        KeyBinding::new("cmd-shift-t", AddTag, c),
+        KeyBinding::new("cmd-alt-d", SelectDate, c),
         KeyBinding::new("cmd-alt-0", TurnText, c),
         KeyBinding::new("cmd-alt-1", TurnH1, c),
         KeyBinding::new("cmd-alt-2", TurnH2, c),
