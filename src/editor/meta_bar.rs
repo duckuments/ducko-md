@@ -32,12 +32,11 @@ fn hue_of(s: &str) -> &'static str {
     hues[(hash_str(s) as usize) % hues.len()]
 }
 
-/// A dark chip: the hue's saturated swatch behind white text.
+/// A dark chip: the theme's saturated text-color swatch for this hue (not
+/// its `highlight` tokens, which this theme keeps pastel even unprefixed)
+/// behind white text.
 fn chip_colors(hue: &str) -> (Hsla, Hsla) {
-    (
-        theme::bg_color(hue).unwrap_or(Theme::fill_hover()),
-        gpui::white(),
-    )
+    (theme::text_color(hue).unwrap_or(Theme::fill_hover()), gpui::white())
 }
 
 /// `"2026-11-19"` → `(2026, 11, 19)`; permissive about leading zeros, strict
